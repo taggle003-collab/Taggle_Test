@@ -15,7 +15,9 @@ export async function updateUserPlan(
   planData: UserPlanMetadata
 ) {
   try {
-    await clerkClient.users.updateUser(userId, {
+    const client = await clerkClient();
+
+    await client.users.updateUser(userId, {
       unsafeMetadata: planData,
     });
   } catch (error) {
@@ -24,9 +26,12 @@ export async function updateUserPlan(
   }
 }
 
-export async function getUserPlan(userId: string): Promise<UserPlanMetadata | null> {
+export async function getUserPlan(
+  userId: string
+): Promise<UserPlanMetadata | null> {
   try {
-    const user = await clerkClient.users.getUser(userId);
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
     return (user.unsafeMetadata as UserPlanMetadata) || null;
   } catch (error) {
     console.error("Error getting user plan:", error);
