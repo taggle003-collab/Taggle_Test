@@ -4,14 +4,29 @@ import LiteDashboard from "./components/LiteDashboard";
 import SoloDashboard from "./components/SoloDashboard";
 import ProDashboard from "./components/ProDashboard";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ payment?: string }>;
+}) {
   const user = await currentUser();
   const userPlan = await getUserPlan(user?.id || "");
-
-  const plan = userPlan?.plan || "lite"; // Default to lite if no plan
+  
+  // Await the searchParams promise for Next.js 16
+  const params = await searchParams;
+  const plan = userPlan?.plan || "lite";
 
   return (
     <div className="py-8">
+      {/* Payment Success Banner */}
+      {params.payment === "success" && (
+        <div className="bg-green-600 text-white px-4 py-3 rounded-lg mb-8">
+          <p className="font-semibold">
+            ✓ Payment successful! Your plan is now active.
+          </p>
+        </div>
+      )}
+
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">
           Welcome, {user?.firstName || "User"}!
