@@ -1,126 +1,152 @@
 "use client";
 
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { DODO_PLANS } from "@/lib/dodo-config";
+import { useUser } from "@clerk/nextjs";
 
-const Pricing = () => {
-  const [isYearly, setIsYearly] = useState(false);
+export default function Pricing() {
+  const { user, isLoaded } = useUser();
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+  const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
 
-  const tiers = [
-    {
-      name: "Lite",
-      price: isYearly ? 9 * 10 : 9,
-      description: "100 verified leads/month delivered to your inbox",
-      features: [
-        "Inbox delivery only",
-        "Basic ICP matching",
-        "No CRM or automation",
-        "No Real-time Notifications",
-        "No Advanced Analytics",
-      ],
-      buttonText: "Start Lite",
-      recommended: false,
-    },
-    {
-      name: "Solo",
-      price: isYearly ? 29 * 10 : 29,
-      description: "500 verified leads/month delivered to your inbox",
-      features: [
-        "Inbox delivery with insights",
-        "Advanced ICP matching",
-        "Limited CRM integrations",
-        "Limited Automations enabled",
-        "Real-time Notifications",
-        "Limited Advanced Analytics",
-      ],
-      buttonText: "Get Solo",
-      recommended: true,
-    },
-    {
-      name: "Pro",
-      price: isYearly ? 69 * 10 : 69,
-      description: "1500 verified leads/month delivered to your inbox",
-      features: [
-        "Inbox delivery with insights",
-        "Advanced ICP matching",
-        "Full CRM integrations",
-        "All Automations enabled",
-        "Real-time Notifications",
-        "Full Advanced Analytics",
-      ],
-      buttonText: "Go Pro",
-      recommended: false,
-    },
-  ];
+  const handlePayment = async (productId: string, planName: string) => {
+    if (!isLoaded || !user) {
+      // Redirect to sign up
+      window.location.href = "/sign-up";
+      return;
+    }
+
+    setLoadingProductId(productId);
+
+    try {
+      const response = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId,
+          userEmail: user.emailAddresses[0].emailAddress,
+          userId: user.id,
+          planName,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create checkout session");
+      }
+
+      const { checkoutUrl } = await response.json();
+      window.location.href = checkoutUrl;
+    } catch (error) {
+      console.error("Payment error:", error);
+      alert("Failed to initiate payment. Please try again.");
+    } finally {
+      setLoadingProductId(null);
+    }
+  };
 
   return (
-    <div id="pricing" className="py-24 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-brand-black sm:text-4xl">
-            Straightforward Pricing - You pay. We deliver. Simple.
-          </h2>
-          <div className="mt-6 flex justify-center items-center space-x-4">
-            <span className={`text-sm ${!isYearly ? 'font-bold text-brand-black' : 'text-gray-500'}`}>Monthly</span>
+    <section id="pricing" className="py-20 bg-gray-900">
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold text-white mb-4">Straightforward Pricing</h2>
+          <p className="text-gray-400 mb-8">You pay. We deliver. Simple.</p>
+
+          {/* Monthly/Yearly Toggle */}
+          <div className="flex items-center justify-center gap-4 mb-8">
             <button
-              onClick={() => setIsYearly(!isYearly)}
-              className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none bg-brand-orange"
+              onClick={() => setBillingCycle("monthly")}
+              className={`px-6 py-2 rounded-lg font-semibold transition ${
+                billingCycle === "monthly"
+                  ? "bg-orange-600 text-white"
+                  : "bg-gray-800 text-gray-400 hover:text-white"
+              }`}
             >
-              <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                  isYearly ? "translate-x-5" : "translate-x-0"
-                }`}
-              />
+              Monthly
             </button>
-            <span className={`text-sm ${isYearly ? 'font-bold text-brand-black' : 'text-gray-500'}`}>Yearly (2 months free)</span>
+            <button
+              onClick={() => setBillingCycle("yearly")}
+              className={`px-6 py-2 rounded-lg font-semibold transition ${
+                billingCycle === "yearly"
+                  ? "bg-orange-600 text-white"
+                  : "bg-gray-800 text-gray-400 hover:text-white"
+              }`}
+            >
+              Yearly
+              <span className="text-sm text-gray-400 ml-2">(Save 15%)</span>
+            </button>
           </div>
         </div>
 
-        <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {tiers.map((tier) => (
-            <div
-              key={tier.name}
-              className={`relative flex flex-col p-8 bg-white border rounded-2xl shadow-sm ${
-                tier.recommended ? "border-brand-orange ring-2 ring-brand-orange ring-opacity-50" : "border-gray-200"
-              }`}
-            >
-              {tier.recommended && (
-                <div className="absolute top-0 right-8 -translate-y-1/2 bg-brand-orange text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full">
-                  Recommended
-                </div>
-              )}
-              <div className="flex-1">
-                <h3 className="text-xl font-semibold text-brand-black">{tier.name}</h3>
-                <p className="mt-4 flex items-baseline text-brand-black">
-                  <span className="text-5xl font-extrabold tracking-tight">${tier.price}</span>
-                  <span className="ml-1 text-xl font-semibold">/{isYearly ? "year" : "mo"}</span>
-                </p>
-                <p className="mt-6 text-gray-500">{tier.description}</p>
+        {/* Pricing Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {Object.entries(DODO_PLANS).map(([key, plan]) => {
+            const productId =
+              billingCycle === "monthly"
+                ? plan.monthlyProductId
+                : plan.yearlyProductId;
+            const price =
+              billingCycle === "monthly" ? plan.monthlyPrice : plan.yearlyPrice;
+            const isRecommended = key === "solo";
 
-                <ul className="mt-6 space-y-4">
-                  {tier.features.map((feature) => (
-                    <li key={feature} className="flex items-start">
-                      <Check className="flex-shrink-0 h-5 w-5 text-brand-orange" />
-                      <span className="ml-3 text-base text-gray-700">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <button
-                className={`mt-8 w-full py-3 px-6 rounded-md font-semibold transition-colors ${
-                  tier.recommended
-                    ? "bg-brand-orange text-white hover:bg-orange-600"
-                    : "bg-gray-100 text-brand-black hover:bg-gray-200"
+            return (
+              <div
+                key={key}
+                className={`rounded-lg border-2 transition transform hover:scale-105 ${
+                  isRecommended
+                    ? "border-orange-600 bg-gradient-to-b from-orange-600/10 to-gray-800"
+                    : "border-gray-700 bg-gray-800"
                 }`}
               >
-                {tier.buttonText}
-              </button>
-            </div>
-          ))}
+                {/* Recommended Badge */}
+                {isRecommended && (
+                  <div className="bg-orange-600 text-white text-center py-2 font-semibold text-sm">
+                    Recommended
+                  </div>
+                )}
+
+                <div className="p-8">
+                  {/* Plan Name */}
+                  <h3 className="text-2xl font-bold text-white mb-2">{plan.name}</h3>
+
+                  {/* Price */}
+                  <div className="mb-6">
+                    <span className="text-5xl font-bold text-orange-600">${price}</span>
+                    <span className="text-gray-400">/mo</span>
+                  </div>
+
+                  {/* Lead Count */}
+                  <p className="text-gray-400 mb-6">{plan.leads} verified leads/month</p>
+
+                  {/* CTA Button */}
+                  <button
+                    onClick={() => handlePayment(productId, plan.name)}
+                    disabled={loadingProductId === productId}
+                    className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition disabled:opacity-50 mb-8"
+                  >
+                    {loadingProductId === productId
+                      ? "Processing..."
+                      : key === "lite"
+                      ? "Start Lite"
+                      : key === "solo"
+                      ? "Get Solo"
+                      : "Go Pro"}
+                  </button>
+
+                  {/* Features */}
+                  <div className="space-y-3">
+                    {plan.features.map((feature, idx) => (
+                      <div key={idx} className="flex items-start gap-3">
+                        <span className="text-orange-600 mt-1">✓</span>
+                        <span className="text-gray-300 text-sm">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
-    </div>
+    </section>
   );
-};
-
-export default Pricing;
+}
