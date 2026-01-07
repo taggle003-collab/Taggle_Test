@@ -1,6 +1,9 @@
 import { createDodoCheckoutSession } from "@/lib/dodo-payment";
 import { NextRequest, NextResponse } from "next/server";
 
+// Store pending orders temporarily (in production, use a database)
+const pendingOrders = new Map<string, any>();
+
 export async function POST(request: NextRequest) {
   try {
     const { productId, userEmail, userId, planName } = await request.json();
@@ -14,8 +17,22 @@ export async function POST(request: NextRequest) {
 
     const session = await createDodoCheckoutSession(productId, userEmail, userId);
 
-    // TODO: Store pending plan purchase in database
-    // This will be used to update user's plan when payment succeeds
+    // Store pending order info (you should use a database for production)
+    pendingOrders.set(session.sessionId, {
+      userId,
+      userEmail,
+      productId,
+      planName,
+      createdAt: new Date(),
+    });
+
+    // Cleanup old pending orders (older than 24 hours)
+    const now = Date.now();
+    for (const [key, value] of pendingOrders.entries()) {
+      if (now - value.createdAt.getTime() > 24 * 60 * 60 * 1000) {
+        pendingOrders.delete(key);
+      }
+    }
 
     return NextResponse.json({
       sessionId: session.sessionId,
@@ -29,3 +46,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export for testing
+export { pendingOrders };
