@@ -8,7 +8,7 @@ export interface UserPlanMetadata {
   purchaseDate?: string;
   leadsUsed?: number;
   totalLeads?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export async function updateUserPlan(
