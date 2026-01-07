@@ -10,7 +10,13 @@ export async function createDodoCheckoutSession(
   userEmail: string,
   userId: string
 ): Promise<DodoCheckoutSession> {
+  if (!DODO_API_KEY) {
+    throw new Error("NEXT_PUBLIC_DODO_API_KEY is not set");
+  }
+
   try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    
     const response = await fetch("https://api.dodopayments.com/checkout/sessions", {
       method: "POST",
       headers: {
@@ -21,18 +27,25 @@ export async function createDodoCheckoutSession(
         productId,
         customerEmail: userEmail,
         customData: {
-          userId, // Store Clerk user ID for order tracking
+          userId,
         },
-        successUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard?payment=success`,
-        cancelUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/#pricing?payment=cancelled`,
+        successUrl: `${appUrl}/dashboard?payment=success`,
+        cancelUrl: `${appUrl}/#pricing?payment=cancelled`,
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Dodo API error: ${response.statusText}`);
+      const error = await response.text();
+      console.error("Dodo API error response:", error);
+      throw new Error(`Dodo API error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
+    
+    if (!data.sessionId || !data.checkoutUrl) {
+      throw new Error("Invalid Dodo response: missing sessionId or checkoutUrl");
+    }
+
     return {
       sessionId: data.sessionId,
       checkoutUrl: data.checkoutUrl,
