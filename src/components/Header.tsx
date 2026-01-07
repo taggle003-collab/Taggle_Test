@@ -16,11 +16,11 @@ const Header = () => {
   return (
     <header className="fixed w-full bg-white/80 backdrop-blur-md z-50 border-b border-gray-100">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="Top">
-        <div className="w-full py-6 flex items-center justify-between border-b border-brand-orange lg:border-none">
+        <div className="w-full py-6 flex items-center justify-between border-b border-orange-600 lg:border-none">
           <div className="flex items-center">
             <Link href="/" className="flex items-center">
-              <span className="text-2xl font-bold text-brand-black">
-                <span className="text-brand-orange">T</span>aggle
+              <span className="text-2xl font-bold text-black">
+                <span className="text-orange-600">T</span>aggle
               </span>
             </Link>
             <div className="hidden ml-10 space-x-8 lg:block">
@@ -28,7 +28,7 @@ const Header = () => {
                 <Link
                   key={link.name}
                   href={link.href}
-                  className="text-base font-medium text-gray-500 hover:text-brand-orange transition-colors"
+                  className="text-base font-medium text-gray-500 hover:text-orange-600 transition-colors"
                 >
                   {link.name}
                 </Link>
@@ -38,7 +38,7 @@ const Header = () => {
           <div className="ml-10 space-x-4 flex items-center">
             <Link
               href="#"
-              className="inline-block bg-brand-orange py-2 px-4 border border-transparent rounded-md text-base font-medium text-white hover:bg-orange-600 transition-colors"
+              className="inline-block bg-orange-600 py-2 px-4 border border-transparent rounded-md text-base font-medium text-white hover:bg-orange-700 transition-colors"
             >
               Get Early Access
             </Link>
@@ -62,7 +62,7 @@ const Header = () => {
                 <Link
                   key={link.name}
                   href={link.href}
-                  className="text-base font-medium text-gray-500 hover:text-brand-orange transition-colors"
+                  className="text-base font-medium text-gray-500 hover:text-orange-600 transition-colors"
                   onClick={() => setIsOpen(false)}
                 >
                   {link.name}

@@ -12,9 +12,9 @@ const Hero = () => {
           transition={{ duration: 0.5 }}
           className="text-center"
         >
-          <h1 className="text-4xl tracking-tight font-extrabold text-brand-black sm:text-5xl md:text-6xl">
+          <h1 className="text-4xl tracking-tight font-extrabold text-black sm:text-5xl md:text-6xl">
             <span className="block">Only Talk to those who are</span>
-            <span className="block text-brand-orange">ready to talk to you.</span>
+            <span className="block text-orange-600">ready to talk to you.</span>
           </h1>
           <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
             Verified leads sent straight to your inbox. Download in a click. Automate the rest.
@@ -23,14 +23,14 @@ const Hero = () => {
             <div className="inline-flex rounded-md shadow">
               <a
                 href="#pricing"
-                className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-brand-orange hover:bg-orange-600 md:py-4 md:text-lg md:px-10 transition-colors"
+                className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 md:py-4 md:text-lg md:px-10 transition-colors"
               >
                 Enjoy a 7-day free trial
               </a>
             </div>
           </div>
           <div className="mt-12 space-y-2">
-            <p className="text-lg font-semibold text-brand-black">
+            <p className="text-lg font-semibold text-black">
               Taggle Delivers the Leads That Convert
             </p>
             <p className="max-w-2xl mx-auto text-gray-500">
