@@ -98,7 +98,7 @@ export async function createDodoCheckoutSession(
   console.log("[dodo-payment] API key loaded:", bearerToken.substring(0, 8) + "...");
 
   // Try different authentication methods that Dodo might support
-  const authHeaders = [
+  const authHeaders: { name: string; headers: Record<string, string> }[] = [
     {
       name: "X-API-Key",
       headers: { "X-API-Key": bearerToken }
@@ -207,7 +207,7 @@ export async function getDodoOrder(orderId: string) {
   const baseUrl = getDodoBaseUrl();
 
   // Try different authentication methods that Dodo might support
-  const authHeaders = [
+  const authHeaders: { name: string; headers: Record<string, string> }[] = [
     {
       name: "X-API-Key",
       headers: { "X-API-Key": bearerToken }
