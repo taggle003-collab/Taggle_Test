@@ -63,16 +63,16 @@ const Sidebar = ({ isAdmin }: SidebarProps) => {
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <button
           onClick={toggleSidebar}
-          className="p-2 bg-[#FF6B35] text-white rounded-md focus:outline-none"
+          className="p-2.5 bg-[#FF6B35] text-white rounded-lg focus:outline-none shadow-lg hover:bg-[#e55a2b] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
         >
-          {isOpen ? <X size={24} /> : <Menu size={24} />}
+          {isOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
 
       {/* Sidebar Overlay for Mobile */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm"
           onClick={toggleSidebar}
         />
       )}
@@ -80,7 +80,7 @@ const Sidebar = ({ isAdmin }: SidebarProps) => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed top-0 left-0 z-40 w-[200px] h-screen transition-transform -translate-x-full lg:translate-x-0 bg-[#1a1a1a] border-r border-[#FF6B35]/20",
+          "fixed top-0 left-0 z-50 w-[200px] h-screen transition-transform -translate-x-full lg:translate-x-0 bg-[#1a1a1a] border-r border-[#FF6B35]/20 shadow-xl lg:shadow-none",
           isOpen && "translate-x-0"
         )}
       >
@@ -119,7 +119,7 @@ const Sidebar = ({ isAdmin }: SidebarProps) => {
 
           <div className="mt-auto pt-4 border-t border-[#FF6B35]/20">
             <SignOutButton>
-              <button className="flex items-center w-full p-3 text-gray-400 rounded-lg hover:bg-red-900/20 hover:text-red-500 transition-colors">
+              <button className="flex items-center w-full p-3 text-gray-400 rounded-lg hover:bg-red-900/20 hover:text-red-500 transition-colors min-h-[44px]">
                 <LogOut className="w-5 h-5" />
                 <span className="ms-3">Logout</span>
               </button>

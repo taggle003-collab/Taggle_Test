@@ -66,12 +66,15 @@ const LeadScraper = () => {
         body: JSON.stringify({ ...criteria, page: 1, limit: 1000 }), // Fetch all
       });
 
-      if (!response.ok) throw new Error("Failed to scrape leads");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to scrape leads");
+      }
 
       const data = await response.json();
       
       if (data.leads.length === 0) {
-        setMessage({ type: "error", text: "No leads found matching your criteria. Please try different filters." });
+        setMessage({ type: "error", text: `No leads found in ${criteria.location}. Try selecting a different location or broadening your criteria.` });
         setAllLeads([]);
         setDisplayedLeads([]);
         setPagination(null);
@@ -92,10 +95,10 @@ const LeadScraper = () => {
           hasPrev: false,
         });
         
-        setMessage({ type: "success", text: `Found ${data.leads.length} verified leads!` });
+        setMessage({ type: "success", text: `Found ${data.leads.length} verified leads in ${criteria.location}!` });
       }
-    } catch (error) {
-      setMessage({ type: "error", text: "Something went wrong while scraping leads." });
+    } catch (error: any) {
+      setMessage({ type: "error", text: error.message || "Something went wrong while scraping leads." });
       console.error(error);
     } finally {
       setIsLoading(false);
@@ -497,32 +500,34 @@ const LeadScraper = () => {
           {/* Mobile Card View */}
           <div className="lg:hidden p-4 space-y-3">
             <div className="flex items-center justify-between mb-2">
-              <label className="flex items-center gap-2 text-sm text-gray-400">
+              <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer min-h-[44px]">
                 <input
                   type="checkbox"
                   checked={selectedLeads.size === displayedLeads.length && displayedLeads.length > 0}
                   onChange={handleSelectAll}
                   className="w-5 h-5 accent-[#FF6B35] cursor-pointer"
                 />
-                Select all on page
+                <span>Select all on page</span>
               </label>
             </div>
             
-            {displayedLeads.map((lead) => (
-              <LeadCard
-                key={lead.id}
-                lead={lead}
-                isSelected={selectedLeads.has(lead.id)}
-                onSelect={handleSelectLead}
-                onDelete={handleDeleteLead}
-                onCopyEmail={handleCopyEmail}
-                copiedEmail={copiedEmail}
-              />
-            ))}
+            <div className="space-y-3">
+              {displayedLeads.map((lead) => (
+                <LeadCard
+                  key={lead.id}
+                  lead={lead}
+                  isSelected={selectedLeads.has(lead.id)}
+                  onSelect={handleSelectLead}
+                  onDelete={handleDeleteLead}
+                  onCopyEmail={handleCopyEmail}
+                  copiedEmail={copiedEmail}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Pagination */}
-          {pagination && pagination.pages > 1 && (
+          {pagination && (
             <Pagination
               currentPage={currentPage}
               totalPages={pagination.pages}

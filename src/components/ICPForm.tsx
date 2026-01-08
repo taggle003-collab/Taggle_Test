@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Search, Loader2, X, ChevronDown, Check } from "lucide-react";
 
 export interface ICPCriteria {
@@ -34,6 +34,14 @@ const fundingOptions = [
   "Pre-seed", "Seed", "Series A", "Series B+", "Bootstrapped"
 ];
 
+const locationOptions = [
+  "India", "USA", "Canada", "United Kingdom", "Germany", "France", 
+  "Australia", "Japan", "Singapore", "Dubai", "UAE", "China", 
+  "Brazil", "Mexico", "Spain", "Italy", "Netherlands", "Sweden",
+  "Switzerland", "Ireland", "South Korea", "Hong Kong", "New Zealand",
+  "Israel", "Russia", "Poland", "Turkey", "Indonesia", "Vietnam"
+];
+
 const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
   const [criteria, setCriteria] = useState<ICPCriteria>({
     industry: "",
@@ -45,7 +53,26 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
     customICP: "",
   });
   const [showJobTitles, setShowJobTitles] = useState(false);
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [locationSearch, setLocationSearch] = useState("");
   const [validationError, setValidationError] = useState("");
+  const locationInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowLocationDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredLocations = locationOptions.filter(loc =>
+    loc.toLowerCase().includes(locationSearch.toLowerCase())
+  );
 
   const handleJobTitleToggle = (title: string) => {
     setCriteria((prev) => ({
@@ -56,16 +83,33 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
     }));
   };
 
+  const handleLocationSelect = (location: string) => {
+    setCriteria((prev) => ({ ...prev, location }));
+    setLocationSearch("");
+    setShowLocationDropdown(false);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError("");
 
-    // Check if user has filled either custom ICP or structured fields
-    const hasCustomICP = criteria.customICP && criteria.customICP.trim().length > 0;
-    const hasStructuredFields = criteria.industry && criteria.companySize && criteria.location && criteria.jobTitles.length > 0;
+    // Location is REQUIRED
+    if (!criteria.location || criteria.location.trim().length === 0) {
+      setValidationError("Location is required. Please select a location.");
+      return;
+    }
 
-    if (!hasCustomICP && !hasStructuredFields) {
-      setValidationError("Please define ICP either through structured fields or custom description");
+    // Check if user has filled either custom ICP or at least one structured field
+    const hasCustomICP = criteria.customICP && criteria.customICP.trim().length > 0;
+    const hasAtLeastOneStructuredField = 
+      criteria.industry || 
+      criteria.companySize || 
+      criteria.jobTitles.length > 0 ||
+      criteria.annualRevenue ||
+      criteria.fundingStage;
+
+    if (!hasCustomICP && !hasAtLeastOneStructuredField) {
+      setValidationError("Please define ICP by selecting at least one filter or providing a custom description");
       return;
     }
 
@@ -119,7 +163,7 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
             onChange={(e) => setCriteria((prev) => ({ ...prev, industry: e.target.value }))}
             className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
           >
-            <option value="">Select industry</option>
+            <option value="">Any industry</option>
             {industries.map((industry) => (
               <option key={industry} value={industry}>{industry}</option>
             ))}
@@ -135,7 +179,7 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
             onChange={(e) => setCriteria((prev) => ({ ...prev, companySize: e.target.value }))}
             className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
           >
-            <option value="">Select size</option>
+            <option value="">Any size</option>
             <option value="1-10">1-10 employees</option>
             <option value="10-50">10-50 employees</option>
             <option value="50-100">50-100 employees</option>
@@ -144,18 +188,51 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
             <option value="1000+">1000+ employees</option>
           </select>
         </div>
-        <div>
+        <div className="relative" ref={dropdownRef}>
           <label className="block text-sm font-medium text-gray-400 mb-1">
-            Location
+            Location <span className="text-[#FF6B35]">*</span>
           </label>
-          <input
-            type="text"
-            name="location"
-            placeholder="e.g. USA, Europe, India"
-            value={criteria.location}
-            onChange={(e) => setCriteria((prev) => ({ ...prev, location: e.target.value }))}
-            className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
-          />
+          <div className="relative">
+            <input
+              ref={locationInputRef}
+              type="text"
+              name="location"
+              placeholder="Search location..."
+              value={showLocationDropdown ? locationSearch : criteria.location}
+              onChange={(e) => {
+                setLocationSearch(e.target.value);
+                setShowLocationDropdown(true);
+              }}
+              onFocus={() => setShowLocationDropdown(true)}
+              className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
+            />
+            <ChevronDown 
+              size={18} 
+              className={`absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition-transform ${showLocationDropdown ? 'rotate-180' : ''}`}
+            />
+          </div>
+          
+          {showLocationDropdown && (
+            <div className="absolute z-10 w-full mt-1 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              {filteredLocations.length > 0 ? (
+                filteredLocations.map((loc) => (
+                  <button
+                    key={loc}
+                    type="button"
+                    onClick={() => handleLocationSelect(loc)}
+                    className={`w-full text-left px-4 py-2.5 hover:bg-[#FF6B35]/10 transition-colors flex items-center justify-between ${
+                      criteria.location === loc ? 'text-[#FF6B35]' : 'text-white'
+                    }`}
+                  >
+                    <span>{loc}</span>
+                    {criteria.location === loc && <Check size={16} />}
+                  </button>
+                ))
+              ) : (
+                <div className="px-4 py-3 text-gray-500 text-sm">No locations found</div>
+              )}
+            </div>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-400 mb-1">
@@ -170,7 +247,7 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
               {criteria.jobTitles.length > 0
                 ? `${criteria.jobTitles.length} selected`
                 : "Select job titles"}
-              <ChevronDown size={18} />
+              <ChevronDown size={18} className={`transition-transform ${showJobTitles ? 'rotate-180' : ''}`} />
             </button>
             
             {showJobTitles && (
@@ -178,7 +255,7 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
                 {jobTitleOptions.map((title) => (
                   <label
                     key={title}
-                    className="flex items-center gap-2 px-4 py-2 hover:bg-[#FF6B35]/10 cursor-pointer"
+                    className="flex items-center gap-2 px-4 py-2.5 hover:bg-[#FF6B35]/10 cursor-pointer"
                   >
                     <input
                       type="checkbox"
