@@ -55,9 +55,9 @@ function generateEmailHtml(leads: any[], criteria: any, page?: number, total?: n
             <table style="width: 100%; border-collapse: collapse; background: #000; border-radius: 12px; overflow: hidden;">
               <thead>
                 <tr style="background: #FF6B35; color: #ffffff;">
-                  <th style="padding: 15px; text-align: left; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Name</th>
+                  <th style="padding: 15px; text-align: left; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Founder</th>
+                  <th style="padding: 15px; text-align: left; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Lead Name</th>
                   <th style="padding: 15px; text-align: left; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Company</th>
-                  <th style="padding: 15px; text-align: left; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Title</th>
                   <th style="padding: 15px; text-align: left; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Email</th>
                 </tr>
               </thead>
@@ -65,10 +65,19 @@ function generateEmailHtml(leads: any[], criteria: any, page?: number, total?: n
                 ${leads.map((lead, index) => `
                   <tr style="border-bottom: 1px solid #333; ${index % 2 === 0 ? 'background: #0a0a0a;' : 'background: #111;'}">
                     <td style="padding: 15px; color: #ffffff;">
+                      <div style="display: flex; align-items: center; gap: 10px;">
+                        ${lead.founderImage ? `<img src="${lead.founderImage}" alt="${lead.founderName}" style="width: 30px; height: 30px; border-radius: 50%; border: 1px solid #FF6B35;">` : ''}
+                        <div style="font-size: 12px;">
+                          <div style="font-weight: 600;">${lead.founderName}</div>
+                          <div style="color: #888; font-size: 10px;">${lead.founderTitle}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style="padding: 15px; color: #ffffff;">
                       <div style="font-weight: 600;">${lead.firstName} ${lead.lastName}</div>
+                      <div style="color: #888; font-size: 11px;">${lead.title}</div>
                     </td>
                     <td style="padding: 15px; color: #ccc;">${lead.company}</td>
-                    <td style="padding: 15px; color: #ccc; font-size: 14px;">${lead.title}</td>
                     <td style="padding: 15px;">
                       <a href="mailto:${lead.email}" style="color: #FF6B35; text-decoration: none; font-weight: 500;">${lead.email}</a>
                     </td>

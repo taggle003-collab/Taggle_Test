@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
 
 const firstNames = [
   "John", "Jane", "Michael", "Sarah", "David", "Emily", "James", "Lisa", "Robert", "Maria",
@@ -17,8 +17,22 @@ const lastNames = [
 
 const companies = [
   "TechCorp", "Startuply", "BigSoft", "Healthify", "PayFlow", "DataMax", "CloudNine", "NextGen", "InnovateCo", "FutureTech",
-  "SmartScale", "GrowthLabs", "PeakPerformance", "PrimeDigital", "AlphaSolutions", "BetaWorks", "GammaSystems", "DeltaTech", "OmegaInnovations", "SigmaDigital"
+  "SmartScale", "GrowthLabs", "PeakPerformance", "PrimeDigital", "AlphaSolutions", "BetaWorks", "GammaSystems", "DeltaTech", "OmegaInnovations", "SigmaDigital",
+  "CyberNaut", "Zenith", "Quantum", "Nexus", "Vertex", "Apex", "Omni", "Flux", "Orbit", "Pulse"
 ];
+
+// Mock founders for companies
+const companyFounders: Record<string, { name: string; title: string; image: string }> = {};
+
+companies.forEach((company, index) => {
+  const firstName = firstNames[index % firstNames.length];
+  const lastName = lastNames[index % lastNames.length];
+  companyFounders[company] = {
+    name: `${firstName} ${lastName}`,
+    title: index % 3 === 0 ? "Founder & CEO" : "Co-Founder",
+    image: `https://i.pravatar.cc/150?u=${company.toLowerCase()}`
+  };
+});
 
 function getRandomItem<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -39,10 +53,10 @@ function isValidEmail(email: string): boolean {
 }
 
 // Generate unique leads (no duplicates)
-function generateLeads(criteria: any, count: number) {
+function generateLeads(criteria: any, count: number, previouslyScrapedEmails: Set<string> = new Set()) {
   const leads = [];
-  const usedEmails = new Set<string>();
-  const usedNames = new Set<string>();
+  const usedEmailsInThisBatch = new Set<string>();
+  const usedNamesInThisBatch = new Set<string>();
   
   const jobTitlesArray = Array.isArray(criteria.jobTitles) && criteria.jobTitles.length > 0
     ? criteria.jobTitles
@@ -77,7 +91,7 @@ function generateLeads(criteria: any, count: number) {
   }
   
   let attempts = 0;
-  const maxAttempts = count * 3;
+  const maxAttempts = count * 10; // Increased attempts to find unique leads
   
   while (leads.length < count && attempts < maxAttempts) {
     attempts++;
@@ -86,19 +100,25 @@ function generateLeads(criteria: any, count: number) {
     const lastName = getRandomItem(lastNames);
     const fullName = `${firstName} ${lastName}`;
     
-    // Skip if we've used this name combo
-    if (usedNames.has(fullName)) continue;
+    // Skip if we've used this name combo in this batch
+    if (usedNamesInThisBatch.has(fullName)) continue;
     
     const title = getRandomItem(jobTitlesArray);
     const company = getRandomItem(companies);
     const domain = company.toLowerCase().replace(/\s+/g, '') + '.com';
     const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${domain}`;
     
-    // Skip if we've used this email or it's invalid
-    if (usedEmails.has(email) || !isValidEmail(email)) continue;
+    // Skip if we've used this email before OR in this batch OR it's invalid
+    if (previouslyScrapedEmails.has(email) || usedEmailsInThisBatch.has(email) || !isValidEmail(email)) continue;
     
-    usedEmails.add(email);
-    usedNames.add(fullName);
+    usedEmailsInThisBatch.add(email);
+    usedNamesInThisBatch.add(fullName);
+    
+    const founder = companyFounders[company] || {
+      name: "John Doe",
+      title: "Founder",
+      image: "https://i.pravatar.cc/150?u=fallback"
+    };
     
     leads.push({
       id: `${Date.now()}-${leads.length}`,
@@ -112,7 +132,10 @@ function generateLeads(criteria: any, count: number) {
       industry,
       linkedInProfile: `https://linkedin.com/in/${firstName.toLowerCase()}-${lastName.toLowerCase()}`,
       verified: true,
-      accuracy: Math.floor(Math.random() * 15) + 85 // 85-100% accuracy score
+      accuracy: Math.floor(Math.random() * 15) + 85, // 85-100% accuracy score
+      founderName: founder.name,
+      founderTitle: founder.title,
+      founderImage: founder.image
     });
   }
   
@@ -126,31 +149,105 @@ export async function POST(req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const user = await currentUser();
-    const body = await req.json();
-    const { page = 1, limit = 10, ...criteria } = body;
-
-    // Generate a larger set of leads (30-50) to have good pagination examples
-    const totalLeads = Math.floor(Math.random() * 21) + 30; // 30-50 leads
-    const allLeads = generateLeads(criteria, totalLeads);
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+    const metadata = (user.unsafeMetadata as any) || {};
     
+    // Rate Limiting Logic
+    const now = new Date();
+    const searchLimit = 3;
+    const oneHour = 60 * 60 * 1000;
+    
+    let searchCount = metadata.searchCount || 0;
+    let lastSearchTime = metadata.lastSearchTime ? new Date(metadata.lastSearchTime) : null;
+    let resetTime = metadata.rateLimitResetTime ? new Date(metadata.rateLimitResetTime) : null;
+    
+    // Reset if it's been more than an hour since the reset time or first search
+    if (resetTime && now > resetTime) {
+      searchCount = 0;
+      resetTime = null;
+    } else if (lastSearchTime && (now.getTime() - lastSearchTime.getTime() > oneHour)) {
+      searchCount = 0;
+      resetTime = null;
+    }
+
+    if (searchCount >= searchLimit) {
+      const actualResetTime = resetTime || new Date(now.getTime() + oneHour);
+      
+      // Update reset time if not set
+      if (!resetTime) {
+        await client.users.updateUser(userId, {
+          unsafeMetadata: {
+            ...metadata,
+            rateLimitResetTime: actualResetTime.toISOString()
+          }
+        });
+      }
+
+      const retryAfter = Math.ceil((actualResetTime.getTime() - now.getTime()) / 1000);
+      
+      return NextResponse.json({
+        error: "Rate limit exceeded",
+        message: `You've used ${searchLimit} searches. Try again in 1 hour.`,
+        resetTime: actualResetTime.toISOString(),
+        retryAfter
+      }, { status: 429 });
+    }
+
+    const body = await req.json();
+    const { page = 1, limit = 20, ...criteria } = body;
+
+    // Previously scraped leads to ensure uniqueness
+    const previousLeads = new Set<string>(metadata.previousLeads || []);
+
+    // Generate a larger set of leads (e.g., 100-120) for pagination
+    const totalLeadsToGenerate = 120;
+    const allLeads = generateLeads(criteria, totalLeadsToGenerate, previousLeads);
+    
+    if (allLeads.length === 0) {
+      return NextResponse.json({ 
+        leads: [],
+        pagination: { page: 1, limit, total: 0, pages: 0 },
+        searchesRemaining: searchLimit - searchCount
+      });
+    }
+
+    // Update user metadata with new search count and used leads
+    const newSearchCount = searchCount + 1;
+    const newPreviousLeads = Array.from(new Set([...Array.from(previousLeads), ...allLeads.map(l => l.email)]));
+    
+    // Limit previousLeads size to avoid Clerk metadata limits (keeping last 500)
+    const trimmedPreviousLeads = newPreviousLeads.slice(-500);
+
+    await client.users.updateUser(userId, {
+      unsafeMetadata: {
+        ...metadata,
+        searchCount: newSearchCount,
+        lastSearchTime: now.toISOString(),
+        previousLeads: trimmedPreviousLeads,
+        rateLimitResetTime: newSearchCount >= searchLimit ? new Date(now.getTime() + oneHour).toISOString() : null
+      }
+    });
+
     // Calculate pagination
+    const totalPages = Math.ceil(allLeads.length / limit);
     const startIndex = (page - 1) * limit;
     const endIndex = startIndex + limit;
     const paginatedLeads = allLeads.slice(startIndex, endIndex);
-    const totalPages = Math.ceil(allLeads.length / limit);
 
     return NextResponse.json({ 
-      leads: paginatedLeads,
+      leads: allLeads, // Return all leads for client-side pagination as per current implementation
       pagination: {
-        page,
+        page: 1,
         limit,
         total: allLeads.length,
-        pages: totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1
+        pages: Math.ceil(allLeads.length / limit),
+        hasNext: allLeads.length > limit,
+        hasPrev: false
       },
-      quality: "verified_active"
+      quality: "verified_active",
+      searchesRemaining: searchLimit - newSearchCount,
+      rateLimitReset: newSearchCount >= searchLimit ? new Date(now.getTime() + oneHour).toISOString() : null
     });
   } catch (error) {
     console.error("[SCRAPE_ERROR]", error);

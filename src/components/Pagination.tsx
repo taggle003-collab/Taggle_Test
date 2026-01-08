@@ -82,8 +82,9 @@ const Pagination = ({
             className="bg-black border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none min-h-[44px]"
           >
             <option value={10}>10</option>
-            <option value={25}>25</option>
+            <option value={20}>20</option>
             <option value={50}>50</option>
+            <option value={100}>100</option>
           </select>
         </div>
       )}

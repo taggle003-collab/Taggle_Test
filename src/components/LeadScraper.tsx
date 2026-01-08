@@ -19,6 +19,9 @@ export interface Lead {
   linkedInProfile?: string;
   verified?: boolean;
   accuracy?: number;
+  founderName?: string;
+  founderTitle?: string;
+  founderImage?: string;
 }
 
 interface PaginationInfo {
@@ -38,7 +41,7 @@ const LeadScraper = () => {
   const [displayedLeads, setDisplayedLeads] = useState<Lead[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -49,6 +52,33 @@ const LeadScraper = () => {
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+  const [searchesRemaining, setSearchesRemaining] = useState<number | null>(null);
+  const [rateLimitReset, setRateLimitReset] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<string>("");
+
+  React.useEffect(() => {
+    if (!rateLimitReset) return;
+
+    const timer = setInterval(() => {
+      const now = new Date();
+      const reset = new Date(rateLimitReset);
+      const diff = reset.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setRateLimitReset(null);
+        setSearchesRemaining(3);
+        setCountdown("");
+        clearInterval(timer);
+        return;
+      }
+
+      const minutes = Math.floor(diff / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      setCountdown(`${minutes} minutes ${seconds} seconds`);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [rateLimitReset]);
 
   const handleScrape = async (criteria: ICPCriteria) => {
     setIsLoading(true);
@@ -66,10 +96,22 @@ const LeadScraper = () => {
         body: JSON.stringify({ ...criteria, page: 1, limit: 1000 }), // Fetch all
       });
 
+      if (response.status === 429) {
+        const data = await response.json();
+        setRateLimitReset(data.resetTime);
+        setSearchesRemaining(0);
+        setMessage({ type: "error", text: data.message });
+        setIsLoading(false);
+        return;
+      }
+
       if (!response.ok) throw new Error("Failed to scrape leads");
 
       const data = await response.json();
       
+      setSearchesRemaining(data.searchesRemaining);
+      if (data.rateLimitReset) setRateLimitReset(data.rateLimitReset);
+
       if (data.leads.length === 0) {
         setMessage({ type: "error", text: "No leads found matching your criteria. Please try different filters." });
         setAllLeads([]);
@@ -321,7 +363,13 @@ const LeadScraper = () => {
     <div className="space-y-6">
       <div className="bg-[#1a1a1a] p-4 sm:p-6 lg:p-8 rounded-2xl border border-gray-800 shadow-xl">
         <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Define Your Ideal Customer Profile</h2>
-        <ICPForm onScrape={handleScrape} isLoading={isLoading} />
+        <ICPForm 
+          onScrape={handleScrape} 
+          isLoading={isLoading} 
+          searchesRemaining={searchesRemaining}
+          rateLimitReset={rateLimitReset}
+          countdown={countdown}
+        />
       </div>
 
       {message && (
@@ -403,9 +451,10 @@ const LeadScraper = () => {
                       className="w-4 h-4 accent-[#FF6B35] cursor-pointer"
                     />
                   </th>
+                  <th className="px-4 py-4">Founder</th>
                   <th className="px-4 py-4 cursor-pointer hover:text-[#FF6B35] transition-colors" onClick={() => handleSort("name")}>
                     <div className="flex items-center gap-1">
-                      Name
+                      Lead Name
                       <ArrowUpDown size={12} />
                     </div>
                   </th>
@@ -458,6 +507,26 @@ const LeadScraper = () => {
                         onChange={() => handleSelectLead(lead.id)}
                         className="w-4 h-4 accent-[#FF6B35] cursor-pointer"
                       />
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        {lead.founderImage ? (
+                          <img 
+                            src={lead.founderImage} 
+                            alt={lead.founderName} 
+                            className="w-10 h-10 rounded-full border border-gray-700 object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center border border-gray-700">
+                            <span className="text-gray-500 text-xs">?</span>
+                          </div>
+                        )}
+                        <div className="flex flex-col">
+                          <span className="text-white text-sm font-medium">{lead.founderName}</span>
+                          <span className="text-gray-500 text-[10px]">{lead.founderTitle}</span>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-4">
                       <div className="text-white font-medium">{lead.firstName} {lead.lastName}</div>
