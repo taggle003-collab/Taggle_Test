@@ -14,7 +14,8 @@ export default async function DashboardPage({
   
   // Await the searchParams promise for Next.js 16
   const params = await searchParams;
-  const plan = userPlan?.plan || "lite";
+  const isAdmin = user?.emailAddresses[0]?.emailAddress === "taggle003@gmail.com";
+  const plan = isAdmin ? "pro" : (userPlan?.plan || "lite");
 
   return (
     <div className="py-8">
