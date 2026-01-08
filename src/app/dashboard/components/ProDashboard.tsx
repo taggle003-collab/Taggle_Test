@@ -1,16 +1,16 @@
 export default function ProDashboard() {
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-orange-600/30 to-gray-800 rounded-lg p-6 border-2 border-orange-600">
+      <div className="bg-gradient-to-r from-[#FF6B35]/30 to-gray-800 rounded-lg p-6 border-2 border-[#FF6B35]">
         <h2 className="text-2xl font-bold text-white mb-4">Pro Plan Dashboard</h2>
         <p className="text-gray-400 mb-4">
           You have access to 1500 verified leads per month with full features.
         </p>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-gray-700 rounded-lg p-4">
             <p className="text-gray-400 text-sm">Leads This Month</p>
-            <p className="text-3xl font-bold text-orange-600">0/1500</p>
+            <p className="text-3xl font-bold text-[#FF6B35]">0/1500</p>
           </div>
           <div className="bg-gray-700 rounded-lg p-4">
             <p className="text-gray-400 text-sm">Plan Type</p>
@@ -69,7 +69,7 @@ export default function ProDashboard() {
         </div>
       </div>
 
-      <div className="bg-orange-900/30 border border-orange-600 rounded-lg p-6">
+      <div className="bg-[#FF6B35]/20 border border-[#FF6B35] rounded-lg p-6">
         <p className="text-orange-200">
           🚀 Premium plan unlocked! You have full access to all Taggle features.
         </p>

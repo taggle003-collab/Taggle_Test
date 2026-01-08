@@ -1,6 +1,60 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 
+const firstNames = [
+  "John", "Jane", "Michael", "Sarah", "David", "Emily", "James", "Lisa", "Robert", "Maria",
+  "William", "Jennifer", "Richard", "Patricia", "Joseph", "Linda", "Thomas", "Barbara", "Charles", "Susan",
+  "Christopher", "Jessica", "Daniel", "Karen", "Matthew", "Nancy", "Anthony", "Betty", "Mark", "Helen", "Donald",
+  "Sandra", "Steven", "Donna", "Paul", "Carol", "Andrew", "Ruth", "Joshua", "Sharon", "Kenneth"
+];
+
+const lastNames = [
+  "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez",
+  "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
+  "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
+  "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen", "Hill", "Flores"
+];
+
+const companies = [
+  "TechCorp", "Startuply", "BigSoft", "Healthify", "PayFlow", "DataMax", "CloudNine", "NextGen", "InnovateCo", "FutureTech",
+  "SmartScale", "GrowthLabs", "PeakPerformance", "PrimeDigital", "AlphaSolutions", "BetaWorks", "GammaSystems", "DeltaTech", "OmegaInnovations", "SigmaDigital"
+];
+
+function getRandomItem(arr: string[]) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function generateLeads(criteria: any, count: number) {
+  const leads = [];
+  const jobTitlesArray = Array.isArray(criteria.jobTitles) ? criteria.jobTitles : [];
+  
+  for (let i = 0; i < count; i++) {
+    const firstName = getRandomItem(firstNames);
+    const lastName = getRandomItem(lastNames);
+    const title = jobTitlesArray.length > 0 
+      ? getRandomItem(jobTitlesArray)
+      : getRandomItem(["CEO", "CTO", "Founder", "VP Sales", "Sales Director", "Marketing Manager"]);
+    
+    const company = getRandomItem(companies);
+    const domain = company.toLowerCase().replace(/\s+/g, '') + '.com';
+    
+    leads.push({
+      id: `${Date.now()}-${i}`,
+      firstName,
+      lastName,
+      email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${domain}`,
+      company,
+      title,
+      location: criteria.location || "USA",
+      companySize: criteria.companySize || "10-50",
+      industry: criteria.industry || "SaaS",
+      linkedInProfile: `https://linkedin.com/in/${firstName.toLowerCase()}-${lastName.toLowerCase()}`
+    });
+  }
+  
+  return leads;
+}
+
 export async function POST(req: Request) {
   try {
     const { userId } = await auth();
@@ -11,63 +65,9 @@ export async function POST(req: Request) {
     const user = await currentUser();
     const criteria = await req.json();
 
-    // Mock scraping logic
-    // In a real app, this would call an external API or run a scraping task
-    const mockLeads = [
-      {
-        id: "1",
-        name: "John Doe",
-        email: "john@example.com",
-        company: "TechCorp",
-        title: "CEO",
-        location: criteria.location || "USA",
-        companySize: criteria.companySize || "10-50",
-        industry: criteria.industry || "SaaS",
-      },
-      {
-        id: "2",
-        name: "Jane Smith",
-        email: "jane@startup.io",
-        company: "Startuply",
-        title: "Founder",
-        location: criteria.location || "USA",
-        companySize: criteria.companySize || "10-50",
-        industry: criteria.industry || "SaaS",
-      },
-      {
-        id: "3",
-        name: "Mike Johnson",
-        email: "mike@enterprise.com",
-        company: "BigSoft",
-        title: "CTO",
-        location: criteria.location || "USA",
-        companySize: criteria.companySize || "10-50",
-        industry: criteria.industry || "SaaS",
-      },
-      {
-        id: "4",
-        name: "Sarah Williams",
-        email: "sarah@healthtech.com",
-        company: "Healthify",
-        title: "Head of Growth",
-        location: criteria.location || "USA",
-        companySize: criteria.companySize || "10-50",
-        industry: criteria.industry || "SaaS",
-      },
-      {
-        id: "5",
-        name: "Robert Brown",
-        email: "robert@fintech.co",
-        company: "PayFlow",
-        title: "VP Engineering",
-        location: criteria.location || "USA",
-        companySize: criteria.companySize || "10-50",
-        industry: criteria.industry || "SaaS",
-      }
-    ];
-
-    // Filter leads to match criteria even better (if we had more mock data)
-    // For now we just return the mock leads using the criteria provided in the response
+    // Generate random number of leads between 10 and 50
+    const leadCount = Math.floor(Math.random() * 41) + 10;
+    const mockLeads = generateLeads(criteria, leadCount);
 
     return NextResponse.json({ 
       leads: mockLeads,

@@ -7,9 +7,9 @@ export default async function ProfilePage() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-white">Profile</h1>
-      <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
+      <div className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-800">
         <div className="flex items-center gap-4 mb-8">
-          <div className="w-20 h-20 rounded-full bg-orange-600 flex items-center justify-center text-3xl font-bold text-white">
+          <div className="w-20 h-20 rounded-full bg-[#FF6B35] flex items-center justify-center text-3xl font-bold text-white">
             {user?.firstName?.[0] || user?.emailAddresses[0]?.emailAddress[0].toUpperCase()}
           </div>
           <div>

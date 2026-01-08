@@ -1,16 +1,16 @@
 export default function LiteDashboard() {
   return (
     <div className="space-y-6">
-      <div className="bg-gray-800 rounded-lg p-6">
+      <div className="bg-[#1a1a1a] rounded-lg p-6 border border-gray-800">
         <h2 className="text-2xl font-bold text-white mb-4">Lite Plan Dashboard</h2>
         <p className="text-gray-400 mb-4">
           You have access to 100 verified leads per month.
         </p>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-gray-700 rounded-lg p-4">
             <p className="text-gray-400 text-sm">Leads This Month</p>
-            <p className="text-3xl font-bold text-orange-600">0/100</p>
+            <p className="text-3xl font-bold text-[#FF6B35]">0/100</p>
           </div>
           <div className="bg-gray-700 rounded-lg p-4">
             <p className="text-gray-400 text-sm">Plan Type</p>
