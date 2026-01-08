@@ -3,27 +3,23 @@
 import { useState } from "react";
 import { DODO_PLANS } from "@/lib/dodo-config";
 import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 
 type BillingCycle = "monthly" | "yearly";
-
 type PlanKey = keyof typeof DODO_PLANS;
 
-export default function Pricing() {
-  let user: ReturnType<typeof useUser>["user"] = null;
-  let isLoaded = false;
-
-  try {
-    ({ user, isLoaded } = useUser());
-  } catch {
-    isLoaded = true;
-  }
-
+function PricingContent() {
+  const { user, isLoaded } = useUser();
+  const router = useRouter();
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [loadingPlanKey, setLoadingPlanKey] = useState<PlanKey | null>(null);
 
   const handlePayment = async (planKey: PlanKey) => {
+    // Check if user is signed in
     if (!isLoaded || !user) {
-      window.location.href = "/sign-up";
+      // Redirect to signup with plan parameter
+      const planName = DODO_PLANS[planKey].name.toLowerCase();
+      router.push(`/sign-up?plan=${planName}`);
       return;
     }
 
@@ -178,4 +174,33 @@ export default function Pricing() {
       </div>
     </section>
   );
+}
+
+// Wrapper component to handle SSR
+export default function Pricing() {
+  if (typeof window === 'undefined') {
+    // Return a simple loading state during SSR
+    return (
+      <section id="pricing" className="py-20 bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-white mb-4">Straightforward Pricing</h2>
+            <p className="text-gray-400 mb-8">You pay. We deliver. Simple.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="rounded-lg border-2 border-gray-700 bg-gray-800 p-8">
+                <div className="h-4 bg-gray-700 rounded mb-4"></div>
+                <div className="h-8 bg-gray-700 rounded mb-6"></div>
+                <div className="h-12 bg-gray-700 rounded mb-8"></div>
+                <div className="h-10 bg-gray-700 rounded"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return <PricingContent />;
 }
