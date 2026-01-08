@@ -2,12 +2,12 @@ import Link from "next/link";
 
 const Footer = () => {
   return (
-    <footer className="bg-brand-black text-white">
+    <footer className="bg-black text-white">
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:py-16 lg:px-8">
         <div className="xl:grid xl:grid-cols-3 xl:gap-8">
           <div className="space-y-8 xl:col-span-1">
             <span className="text-2xl font-bold">
-              <span className="text-brand-orange">T</span>aggle
+              <span className="text-orange-600">T</span>aggle
             </span>
             <p className="text-gray-400 text-base">
               Done chasing leads? We'll send qualified ones right to your inbox.

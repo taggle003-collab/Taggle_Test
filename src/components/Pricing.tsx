@@ -5,7 +5,15 @@ import { DODO_PLANS } from "@/lib/dodo-config";
 import { useUser } from "@clerk/nextjs";
 
 export default function Pricing() {
-  const { user, isLoaded } = useUser();
+  let user: ReturnType<typeof useUser>["user"] = null;
+  let isLoaded = false;
+
+  try {
+    ({ user, isLoaded } = useUser());
+  } catch {
+    isLoaded = true;
+  }
+
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
 

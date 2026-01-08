@@ -36,7 +36,7 @@ const Testimonials = () => {
     <div id="testimonials" className="py-24 bg-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-brand-black sm:text-4xl">
+          <h2 className="text-3xl font-extrabold text-black sm:text-4xl">
             Trusted by Industry Leaders - See how companies are scaling their outreach with Taggle.
           </h2>
         </div>
@@ -45,13 +45,13 @@ const Testimonials = () => {
             {testimonials.map((testimonial, idx) => (
               <div
                 key={idx}
-                className="flex flex-col bg-gray-50 p-8 rounded-2xl shadow-sm border border-gray-100 hover:border-brand-orange transition-colors"
+                className="flex flex-col bg-gray-50 p-8 rounded-2xl shadow-sm border border-gray-100 hover:border-orange-600 transition-colors"
               >
                 <blockquote className="flex-1">
                   <p className="text-lg text-gray-700 italic">"{testimonial.content}"</p>
                 </blockquote>
                 <div className="mt-8">
-                  <p className="text-base font-bold text-brand-black">{testimonial.author}</p>
+                  <p className="text-base font-bold text-black">{testimonial.author}</p>
                   <p className="text-sm text-gray-500">{testimonial.role}</p>
                 </div>
               </div>
