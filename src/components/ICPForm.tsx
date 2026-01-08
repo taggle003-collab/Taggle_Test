@@ -88,7 +88,7 @@ const ICPForm = ({ onScrape, isLoading, searchesRemaining, rateLimitReset, count
           </div>
           {isLocked && (
             <div className="text-sm font-medium text-red-400 animate-pulse">
-              Try again in: {countdown}
+              Searching too fast! Wait {countdown}
             </div>
           )}
         </div>
@@ -287,7 +287,7 @@ const ICPForm = ({ onScrape, isLoading, searchesRemaining, rateLimitReset, count
         ) : isLocked ? (
           <>
             <Search className="me-2" size={20} />
-            Limit Reached
+            Wait {countdown}
           </>
         ) : (
           <>

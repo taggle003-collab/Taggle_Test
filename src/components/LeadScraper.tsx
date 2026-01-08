@@ -14,6 +14,7 @@ export interface Lead {
   company: string;
   title: string;
   location: string;
+  city?: string;
   companySize: string;
   industry: string;
   linkedInProfile?: string;
@@ -72,10 +73,10 @@ const LeadScraper = () => {
         return;
       }
 
-      const minutes = Math.floor(diff / 60000);
-      const seconds = Math.floor((diff % 60000) / 1000);
-      setCountdown(`${minutes} minutes ${seconds} seconds`);
-    }, 1000);
+      // Show countdown as seconds only (max 10 seconds)
+      const seconds = Math.ceil(diff / 1000);
+      setCountdown(`${seconds} seconds`);
+    }, 100);
 
     return () => clearInterval(timer);
   }, [rateLimitReset]);
