@@ -18,11 +18,17 @@ export default async function DashboardPage({
 
   return (
     <div className="py-8">
-      {/* Payment Success Banner */}
+      {/* Payment Status Banner */}
       {params.payment === "success" && (
         <div className="bg-green-600 text-white px-4 py-3 rounded-lg mb-8">
+          <p className="font-semibold">✓ Payment successful! Your plan is now active.</p>
+        </div>
+      )}
+
+      {params.payment === "return" && (
+        <div className="bg-blue-600 text-white px-4 py-3 rounded-lg mb-8">
           <p className="font-semibold">
-            ✓ Payment successful! Your plan is now active.
+            Payment received. We’re activating your plan now — this can take a moment.
           </p>
         </div>
       )}
