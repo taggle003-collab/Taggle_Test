@@ -1,3 +1,5 @@
+import LeadScraping from "@/components/LeadScraping";
+
 export default function LiteDashboard() {
   return (
     <div className="space-y-6">
@@ -18,6 +20,8 @@ export default function LiteDashboard() {
           </div>
         </div>
       </div>
+
+      <LeadScraping />
 
       <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-6">
         <p className="text-blue-200">
