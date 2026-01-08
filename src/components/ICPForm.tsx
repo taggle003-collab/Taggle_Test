@@ -10,6 +10,7 @@ export interface ICPCriteria {
   jobTitles: string[];
   annualRevenue?: string;
   fundingStage?: string;
+  customICP?: string;
 }
 
 interface ICPFormProps {
@@ -41,8 +42,10 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
     jobTitles: [],
     annualRevenue: "",
     fundingStage: "",
+    customICP: "",
   });
   const [showJobTitles, setShowJobTitles] = useState(false);
+  const [validationError, setValidationError] = useState("");
 
   const handleJobTitleToggle = (title: string) => {
     setCriteria((prev) => ({
@@ -55,11 +58,56 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError("");
+
+    // Check if user has filled either custom ICP or structured fields
+    const hasCustomICP = criteria.customICP && criteria.customICP.trim().length > 0;
+    const hasStructuredFields = criteria.industry && criteria.companySize && criteria.location && criteria.jobTitles.length > 0;
+
+    if (!hasCustomICP && !hasStructuredFields) {
+      setValidationError("Please define ICP either through structured fields or custom description");
+      return;
+    }
+
     onScrape(criteria);
   };
 
   return (
     <form onSubmit={handleSubmit} className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-800 space-y-4">
+      {validationError && (
+        <div className="bg-red-900/20 border border-red-900/30 text-red-400 px-4 py-3 rounded-lg text-sm">
+          {validationError}
+        </div>
+      )}
+      
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-400 mb-1">
+            Custom ICP Description (Optional)
+          </label>
+          <textarea
+            name="customICP"
+            placeholder="e.g., 'Early-stage SaaS startups in B2B marketing space with product-market fit'"
+            value={criteria.customICP || ""}
+            onChange={(e) => setCriteria((prev) => ({ ...prev, customICP: e.target.value }))}
+            className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none min-h-[80px] resize-y"
+            rows={3}
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Describe your ideal customer profile in your own words, or use the structured fields below
+          </p>
+        </div>
+        
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-700"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-[#1a1a1a] text-gray-500">OR use structured fields</span>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-400 mb-1">
@@ -70,7 +118,6 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
             value={criteria.industry}
             onChange={(e) => setCriteria((prev) => ({ ...prev, industry: e.target.value }))}
             className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
-            required
           >
             <option value="">Select industry</option>
             {industries.map((industry) => (
@@ -87,7 +134,6 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
             value={criteria.companySize}
             onChange={(e) => setCriteria((prev) => ({ ...prev, companySize: e.target.value }))}
             className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
-            required
           >
             <option value="">Select size</option>
             <option value="1-10">1-10 employees</option>
@@ -109,7 +155,6 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
             value={criteria.location}
             onChange={(e) => setCriteria((prev) => ({ ...prev, location: e.target.value }))}
             className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
-            required
           />
         </div>
         <div>
@@ -203,8 +248,8 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
       </div>
       <button
         type="submit"
-        disabled={isLoading || criteria.jobTitles.length === 0}
-        className="w-full bg-[#FF6B35] hover:bg-[#e55a2b] text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
+        disabled={isLoading}
+        className="w-full bg-[#FF6B35] hover:bg-[#e55a2b] text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 min-h-[44px]"
       >
         {isLoading ? (
           <>

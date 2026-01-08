@@ -3,10 +3,13 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 
 const ADMIN_EMAIL = "taggle003@gmail.com";
 
-function generateEmailHtml(leads: any[], criteria: any) {
+function generateEmailHtml(leads: any[], criteria: any, page?: number, total?: number) {
   const jobTitlesText = Array.isArray(criteria.jobTitles) 
     ? criteria.jobTitles.join(", ") 
     : criteria.jobTitles;
+
+  const pageInfo = page && total ? ` (Page ${page})` : '';
+  const totalInfo = total ? ` out of ${total} total leads found` : '';
 
   return `
     <!DOCTYPE html>
@@ -25,8 +28,8 @@ function generateEmailHtml(leads: any[], criteria: any) {
           </div>
 
           <!-- Title -->
-          <h2 style="color: #ffffff; font-size: 24px; margin-bottom: 20px; font-weight: 600;">Your Scraped Leads</h2>
-          <p style="color: #aaa; margin-bottom: 30px;">Here are the ${leads.length} leads we found based on your Ideal Customer Profile:</p>
+          <h2 style="color: #ffffff; font-size: 24px; margin-bottom: 20px; font-weight: 600;">Your Scraped Leads${pageInfo}</h2>
+          <p style="color: #aaa; margin-bottom: 30px;">Here are ${leads.length} leads${totalInfo} based on your Ideal Customer Profile:</p>
 
           <!-- ICP Criteria Card -->
           <div style="background: #000; padding: 25px; border-radius: 12px; margin-bottom: 30px; border: 1px solid #FF6B35/30;">
@@ -34,10 +37,11 @@ function generateEmailHtml(leads: any[], criteria: any) {
               🔍 Search Criteria
             </h3>
             <div style="color: #ccc; font-size: 14px; line-height: 1.8;">
-              <p style="margin: 5px 0;"><strong style="color: #FF6B35;">Industry:</strong> ${criteria.industry}</p>
-              <p style="margin: 5px 0;"><strong style="color: #FF6B35;">Location:</strong> ${criteria.location}</p>
-              <p style="margin: 5px 0;"><strong style="color: #FF6B35;">Company Size:</strong> ${criteria.companySize} employees</p>
-              <p style="margin: 5px 0;"><strong style="color: #FF6B35;">Job Titles:</strong> ${jobTitlesText}</p>
+              ${criteria.customICP ? `<p style="margin: 5px 0;"><strong style="color: #FF6B35;">Custom ICP:</strong> ${criteria.customICP}</p>` : ''}
+              ${criteria.industry ? `<p style="margin: 5px 0;"><strong style="color: #FF6B35;">Industry:</strong> ${criteria.industry}</p>` : ''}
+              ${criteria.location ? `<p style="margin: 5px 0;"><strong style="color: #FF6B35;">Location:</strong> ${criteria.location}</p>` : ''}
+              ${criteria.companySize ? `<p style="margin: 5px 0;"><strong style="color: #FF6B35;">Company Size:</strong> ${criteria.companySize} employees</p>` : ''}
+              ${jobTitlesText && jobTitlesText.length > 0 ? `<p style="margin: 5px 0;"><strong style="color: #FF6B35;">Job Titles:</strong> ${jobTitlesText}</p>` : ''}
               ${criteria.annualRevenue ? `<p style="margin: 5px 0;"><strong style="color: #FF6B35;">Annual Revenue:</strong> ${criteria.annualRevenue}</p>` : ''}
               ${criteria.fundingStage ? `<p style="margin: 5px 0;"><strong style="color: #FF6B35;">Funding Stage:</strong> ${criteria.fundingStage}</p>` : ''}
               <p style="margin: 15px 0 0 0; padding-top: 10px; border-top: 1px solid #333; color: #888; font-size: 12px;">
@@ -113,7 +117,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const { email, leads, criteria } = await req.json();
+    const { email, leads, criteria, page, total } = await req.json();
 
     if (!email || !leads || leads.length === 0) {
       return new NextResponse("Missing data", { status: 400 });
@@ -125,7 +129,7 @@ export async function POST(req: Request) {
       return new NextResponse("Email service not configured", { status: 500 });
     }
 
-    const emailHtml = generateEmailHtml(leads, criteria);
+    const emailHtml = generateEmailHtml(leads, criteria, page, total);
 
     // Send email using Resend API
     const resendResponse = await fetch('https://api.resend.com/emails', {
