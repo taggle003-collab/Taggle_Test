@@ -1,5 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import DashboardLayoutComponent from "@/components/DashboardLayout";
 
 const ADMIN_EMAIL = "taggle003@gmail.com";
 
@@ -22,13 +23,14 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-8 p-4 bg-orange-600 text-white rounded-lg">
-          <p className="font-semibold">Admin Area - Restricted Access</p>
-        </div>
-        {children}
+    <DashboardLayoutComponent isAdmin={true}>
+      <div className="mb-8 p-4 bg-orange-600/10 border border-orange-600/20 text-orange-600 rounded-xl">
+        <p className="font-semibold flex items-center gap-2">
+          <span className="w-2 h-2 bg-orange-600 rounded-full animate-pulse"></span>
+          Admin Area - Restricted Access
+        </p>
       </div>
-    </div>
+      {children}
+    </DashboardLayoutComponent>
   );
 }

@@ -1,5 +1,8 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import DashboardLayoutComponent from "@/components/DashboardLayout";
+
+const ADMIN_EMAIL = "taggle003@gmail.com";
 
 export default async function DashboardLayout({
   children,
@@ -12,11 +15,12 @@ export default async function DashboardLayout({
     redirect("/sign-in");
   }
 
+  const user = await currentUser();
+  const isAdmin = user?.emailAddresses[0]?.emailAddress === ADMIN_EMAIL;
+
   return (
-    <div className="min-h-screen bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {children}
-      </div>
-    </div>
+    <DashboardLayoutComponent isAdmin={isAdmin}>
+      {children}
+    </DashboardLayoutComponent>
   );
 }
