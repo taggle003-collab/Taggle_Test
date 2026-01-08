@@ -1,6 +1,19 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
 
+// Type definitions
+type LocationKey = 'USA' | 'India' | 'UK' | 'Europe' | 'Canada' | 'Australia' | 'Japan' | 'Singapore' | 'Dubai' | 'Asia';
+
+interface ICPCriteria {
+  location?: string;
+  industry?: string;
+  companySize?: string;
+  jobTitles?: string[];
+  customICP?: string;
+  annualRevenue?: string;
+  fundingStage?: string;
+}
+
 const firstNames = [
   "John", "Jane", "Michael", "Sarah", "David", "Emily", "James", "Lisa", "Robert", "Maria",
   "William", "Jennifer", "Richard", "Patricia", "Joseph", "Linda", "Thomas", "Barbara", "Charles", "Susan",
@@ -53,7 +66,7 @@ function isValidEmail(email: string): boolean {
 }
 
 // Generate unique leads (no duplicates)
-function generateLeads(criteria: any, count: number, previouslyScrapedEmails: Set<string> = new Set()) {
+function generateLeads(criteria: ICPCriteria, count: number, previouslyScrapedEmails: Set<string> = new Set()) {
   const leads = [];
   const usedEmailsInThisBatch = new Set<string>();
   const usedNamesInThisBatch = new Set<string>();
@@ -65,7 +78,7 @@ function generateLeads(criteria: any, count: number, previouslyScrapedEmails: Se
   // Determine values from custom ICP or structured fields
   let industry = criteria.industry || "SaaS";
   let companySize = criteria.companySize || "10-50";
-  let location = criteria.location || "USA";
+  let location: LocationKey = (criteria.location as LocationKey) || "USA";
   
   // If custom ICP is provided, try to extract some info (basic parsing)
   if (criteria.customICP && criteria.customICP.trim()) {
@@ -202,7 +215,7 @@ export async function POST(req: Request) {
 
     // Generate a larger set of leads (e.g., 100-120) for pagination
     const totalLeadsToGenerate = 120;
-    const allLeads = generateLeads(criteria, totalLeadsToGenerate, previousLeads);
+    const allLeads = generateLeads(criteria as ICPCriteria, totalLeadsToGenerate, previousLeads);
     
     if (allLeads.length === 0) {
       return NextResponse.json({ 
