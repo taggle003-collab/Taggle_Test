@@ -4,6 +4,10 @@ import { useState } from "react";
 import { DODO_PLANS } from "@/lib/dodo-config";
 import { useUser } from "@clerk/nextjs";
 
+type BillingCycle = "monthly" | "yearly";
+
+type PlanKey = keyof typeof DODO_PLANS;
+
 export default function Pricing() {
   let user: ReturnType<typeof useUser>["user"] = null;
   let isLoaded = false;
@@ -14,41 +18,62 @@ export default function Pricing() {
     isLoaded = true;
   }
 
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
-  const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
+  const [loadingPlanKey, setLoadingPlanKey] = useState<PlanKey | null>(null);
 
-  const handlePayment = async (productId: string, planName: string) => {
+  const handlePayment = async (planKey: PlanKey) => {
     if (!isLoaded || !user) {
-      // Redirect to sign up
       window.location.href = "/sign-up";
       return;
     }
 
-    setLoadingProductId(productId);
+    const userEmail =
+      user.primaryEmailAddress?.emailAddress ?? user.emailAddresses?.[0]?.emailAddress;
+
+    if (!userEmail) {
+      alert("No email address found for your account.");
+      return;
+    }
+
+    setLoadingPlanKey(planKey);
 
     try {
       const response = await fetch("/api/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          productId,
-          userEmail: user.emailAddresses[0].emailAddress,
+          planKey,
+          billingCycle,
+          userEmail,
           userId: user.id,
-          planName,
+          planName: DODO_PLANS[planKey].name,
         }),
       });
 
+      const data = await response.json().catch(() => null);
+
       if (!response.ok) {
-        throw new Error("Failed to create checkout session");
+        const message =
+          (data && (data.message || data.error)) ||
+          `Failed to create checkout session (${response.status})`;
+        throw new Error(message);
       }
 
-      const { checkoutUrl } = await response.json();
+      const checkoutUrl = data?.checkoutUrl ?? data?.checkout_url;
+      if (!checkoutUrl) {
+        throw new Error("Checkout URL missing from server response");
+      }
+
       window.location.href = checkoutUrl;
     } catch (error) {
       console.error("Payment error:", error);
-      alert("Failed to initiate payment. Please try again.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to initiate payment. Please try again."
+      );
     } finally {
-      setLoadingProductId(null);
+      setLoadingPlanKey(null);
     }
   };
 
@@ -88,17 +113,13 @@ export default function Pricing() {
         {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {Object.entries(DODO_PLANS).map(([key, plan]) => {
-            const productId =
-              billingCycle === "monthly"
-                ? plan.monthlyProductId
-                : plan.yearlyProductId;
-            const price =
-              billingCycle === "monthly" ? plan.monthlyPrice : plan.yearlyPrice;
-            const isRecommended = key === "solo";
+            const planKey = key as PlanKey;
+            const price = billingCycle === "monthly" ? plan.monthlyPrice : plan.yearlyPrice;
+            const isRecommended = planKey === "solo";
 
             return (
               <div
-                key={key}
+                key={planKey}
                 className={`rounded-lg border-2 transition transform hover:scale-105 ${
                   isRecommended
                     ? "border-orange-600 bg-gradient-to-b from-orange-600/10 to-gray-800"
@@ -127,17 +148,17 @@ export default function Pricing() {
 
                   {/* CTA Button */}
                   <button
-                    onClick={() => handlePayment(productId, plan.name)}
-                    disabled={loadingProductId === productId}
+                    onClick={() => handlePayment(planKey)}
+                    disabled={loadingPlanKey === planKey}
                     className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition disabled:opacity-50 mb-8"
                   >
-                    {loadingProductId === productId
+                    {loadingPlanKey === planKey
                       ? "Processing..."
-                      : key === "lite"
-                      ? "Start Lite"
-                      : key === "solo"
-                      ? "Get Solo"
-                      : "Go Pro"}
+                      : planKey === "lite"
+                        ? "Start Lite"
+                        : planKey === "solo"
+                          ? "Get Solo"
+                          : "Go Pro"}
                   </button>
 
                   {/* Features */}
