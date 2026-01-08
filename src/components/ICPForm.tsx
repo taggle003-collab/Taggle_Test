@@ -77,7 +77,7 @@ const ICPForm = ({ onScrape, isLoading, searchesRemaining, rateLimitReset, count
     onScrape(criteria);
   };
 
-  const isLocked = searchesRemaining === 0 && rateLimitReset;
+  const isLocked = searchesRemaining === 0 && Boolean(rateLimitReset);
 
   return (
     <form onSubmit={handleSubmit} className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-800 space-y-4">
