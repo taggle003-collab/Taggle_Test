@@ -63,7 +63,7 @@ const Sidebar = ({ isAdmin }: SidebarProps) => {
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <button
           onClick={toggleSidebar}
-          className="p-2 bg-orange-600 text-white rounded-md focus:outline-none"
+          className="p-2 bg-[#FF6B35] text-white rounded-md focus:outline-none"
         >
           {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
@@ -80,13 +80,13 @@ const Sidebar = ({ isAdmin }: SidebarProps) => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed top-0 left-0 z-40 w-64 h-screen transition-transform -translate-x-full lg:translate-x-0 bg-black border-r border-orange-600/20",
+          "fixed top-0 left-0 z-40 w-[200px] h-screen transition-transform -translate-x-full lg:translate-x-0 bg-[#1a1a1a] border-r border-[#FF6B35]/20",
           isOpen && "translate-x-0"
         )}
       >
         <div className="h-full px-3 py-4 overflow-y-auto flex flex-col">
           <div className="flex items-center mb-10 px-2 py-4">
-            <span className="text-2xl font-bold text-orange-600">Taggle</span>
+            <span className="text-2xl font-bold text-[#FF6B35]">Taggle</span>
           </div>
 
           <ul className="space-y-2 font-medium flex-1">
@@ -100,14 +100,14 @@ const Sidebar = ({ isAdmin }: SidebarProps) => {
                     className={cn(
                       "flex items-center p-3 rounded-lg group transition-colors",
                       isActive
-                        ? "bg-orange-600 text-white"
-                        : "text-gray-400 hover:bg-orange-600/10 hover:text-orange-500"
+                        ? "bg-[#FF6B35] text-white"
+                        : "text-gray-400 hover:bg-[#FF6B35]/10 hover:text-[#FF6B35]"
                     )}
                   >
                     <item.icon
                       className={cn(
                         "w-5 h-5 transition duration-75",
-                        isActive ? "text-white" : "text-gray-400 group-hover:text-orange-500"
+                        isActive ? "text-white" : "text-gray-400 group-hover:text-[#FF6B35]"
                       )}
                     />
                     <span className="ms-3">{item.name}</span>
@@ -117,7 +117,7 @@ const Sidebar = ({ isAdmin }: SidebarProps) => {
             })}
           </ul>
 
-          <div className="mt-auto pt-4 border-t border-orange-600/20">
+          <div className="mt-auto pt-4 border-t border-[#FF6B35]/20">
             <SignOutButton>
               <button className="flex items-center w-full p-3 text-gray-400 rounded-lg hover:bg-red-900/20 hover:text-red-500 transition-colors">
                 <LogOut className="w-5 h-5" />

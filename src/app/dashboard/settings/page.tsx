@@ -4,7 +4,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-white">Settings</h1>
-      <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
+      <div className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-800">
         <p className="text-gray-400">Manage your account settings and preferences.</p>
         <div className="mt-8 space-y-4">
           <div className="p-4 border border-gray-800 rounded-lg">
