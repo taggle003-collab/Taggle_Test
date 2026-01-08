@@ -1,6 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import DashboardLayoutComponent from "@/components/DashboardLayout";
+import PostSignupHandler from "@/components/PostSignupHandler";
 
 const ADMIN_EMAIL = "taggle003@gmail.com";
 
@@ -20,6 +21,7 @@ export default async function DashboardLayout({
 
   return (
     <DashboardLayoutComponent isAdmin={isAdmin}>
+      <PostSignupHandler />
       {children}
     </DashboardLayoutComponent>
   );

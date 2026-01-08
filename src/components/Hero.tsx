@@ -1,8 +1,15 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 const Hero = () => {
+  const router = useRouter();
+
+  const handleStartFree = () => {
+    router.push("/sign-up");
+  };
+
   return (
     <div className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -21,12 +28,12 @@ const Hero = () => {
           </p>
           <div className="mt-10 flex justify-center">
             <div className="inline-flex rounded-md shadow">
-              <a
-                href="#pricing"
+              <button
+                onClick={handleStartFree}
                 className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 md:py-4 md:text-lg md:px-10 transition-colors"
               >
                 Enjoy a 7-day free trial
-              </a>
+              </button>
             </div>
           </div>
           <div className="mt-12 space-y-2">
