@@ -15,7 +15,26 @@ interface LeadCardProps {
 
 const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEmail }: LeadCardProps) => {
   return (
-    <div className="bg-black border border-gray-800 rounded-lg p-4 space-y-3 hover:border-[#FF6B35]/50 transition-all">
+    <div className="bg-black border border-gray-800 rounded-lg p-4 space-y-4 hover:border-[#FF6B35]/50 transition-all">
+      <div className="flex items-center gap-3 border-b border-gray-800 pb-3">
+        {lead.founderImage ? (
+          <img 
+            src={lead.founderImage} 
+            alt={lead.founderName} 
+            className="w-12 h-12 rounded-full border border-gray-700 object-cover flex-shrink-0"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center border border-gray-700 flex-shrink-0">
+            <span className="text-gray-500">?</span>
+          </div>
+        )}
+        <div className="flex flex-col min-w-0">
+          <span className="text-white font-medium text-sm truncate">{lead.founderName}</span>
+          <span className="text-gray-500 text-xs truncate">{lead.founderTitle}</span>
+        </div>
+      </div>
+
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 flex-1 min-w-0">
           <input

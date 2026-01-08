@@ -16,6 +16,9 @@ export interface ICPCriteria {
 interface ICPFormProps {
   onScrape: (criteria: ICPCriteria) => void;
   isLoading: boolean;
+  searchesRemaining: number | null;
+  rateLimitReset: string | null;
+  countdown: string;
 }
 
 const industries = [
@@ -34,7 +37,7 @@ const fundingOptions = [
   "Pre-seed", "Seed", "Series A", "Series B+", "Bootstrapped"
 ];
 
-const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
+const ICPForm = ({ onScrape, isLoading, searchesRemaining, rateLimitReset, countdown }: ICPFormProps) => {
   const [criteria, setCriteria] = useState<ICPCriteria>({
     industry: "",
     companySize: "",
@@ -58,6 +61,8 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (searchesRemaining === 0 && rateLimitReset) return;
+    
     setValidationError("");
 
     // Check if user has filled either custom ICP or structured fields
@@ -72,16 +77,31 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
     onScrape(criteria);
   };
 
+  const isLocked = searchesRemaining === 0 && rateLimitReset;
+
   return (
     <form onSubmit={handleSubmit} className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-800 space-y-4">
+      {searchesRemaining !== null && (
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-sm font-medium text-gray-400">
+            Searches remaining: <span className={searchesRemaining === 0 ? "text-red-500" : "text-[#FF6B35]"}>{searchesRemaining}/3</span>
+          </div>
+          {isLocked && (
+            <div className="text-sm font-medium text-red-400 animate-pulse">
+              Try again in: {countdown}
+            </div>
+          )}
+        </div>
+      )}
+      
       {validationError && (
         <div className="bg-red-900/20 border border-red-900/30 text-red-400 px-4 py-3 rounded-lg text-sm">
           {validationError}
         </div>
       )}
       
-      <div className="space-y-4">
-        <div>
+      <div className="space-y-4 opacity-100 transition-opacity">
+        <div className={isLocked ? "opacity-50 pointer-events-none" : ""}>
           <label className="block text-sm font-medium text-gray-400 mb-1">
             Custom ICP Description (Optional)
           </label>
@@ -92,6 +112,7 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
             onChange={(e) => setCriteria((prev) => ({ ...prev, customICP: e.target.value }))}
             className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none min-h-[80px] resize-y"
             rows={3}
+            disabled={isLocked}
           />
           <p className="text-xs text-gray-500 mt-1">
             Describe your ideal customer profile in your own words, or use the structured fields below
@@ -108,7 +129,7 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${isLocked ? "opacity-50 pointer-events-none" : ""}`}>
         <div>
           <label className="block text-sm font-medium text-gray-400 mb-1">
             Industry / Vertical
@@ -118,6 +139,7 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
             value={criteria.industry}
             onChange={(e) => setCriteria((prev) => ({ ...prev, industry: e.target.value }))}
             className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
+            disabled={isLocked}
           >
             <option value="">Select industry</option>
             {industries.map((industry) => (
@@ -134,6 +156,7 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
             value={criteria.companySize}
             onChange={(e) => setCriteria((prev) => ({ ...prev, companySize: e.target.value }))}
             className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
+            disabled={isLocked}
           >
             <option value="">Select size</option>
             <option value="1-10">1-10 employees</option>
@@ -155,6 +178,7 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
             value={criteria.location}
             onChange={(e) => setCriteria((prev) => ({ ...prev, location: e.target.value }))}
             className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
+            disabled={isLocked}
           />
         </div>
         <div>
@@ -164,7 +188,8 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
           <div className="relative">
             <button
               type="button"
-              onClick={() => setShowJobTitles(!showJobTitles)}
+              onClick={() => !isLocked && setShowJobTitles(!showJobTitles)}
+              disabled={isLocked}
               className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-left text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none flex items-center justify-between"
             >
               {criteria.jobTitles.length > 0
@@ -173,7 +198,7 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
               <ChevronDown size={18} />
             </button>
             
-            {showJobTitles && (
+            {showJobTitles && !isLocked && (
               <div className="absolute z-10 w-full mt-1 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                 {jobTitleOptions.map((title) => (
                   <label
@@ -202,8 +227,9 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
                     {title}
                     <button
                       type="button"
-                      onClick={() => handleJobTitleToggle(title)}
+                      onClick={() => !isLocked && handleJobTitleToggle(title)}
                       className="hover:text-orange-300"
+                      disabled={isLocked}
                     >
                       <X size={12} />
                     </button>
@@ -222,6 +248,7 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
             value={criteria.annualRevenue || ""}
             onChange={(e) => setCriteria((prev) => ({ ...prev, annualRevenue: e.target.value }))}
             className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
+            disabled={isLocked}
           >
             <option value="">Any revenue</option>
             {revenueOptions.map((revenue) => (
@@ -238,6 +265,7 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
             value={criteria.fundingStage || ""}
             onChange={(e) => setCriteria((prev) => ({ ...prev, fundingStage: e.target.value }))}
             className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
+            disabled={isLocked}
           >
             <option value="">Any stage</option>
             {fundingOptions.map((funding) => (
@@ -248,13 +276,18 @@ const ICPForm = ({ onScrape, isLoading }: ICPFormProps) => {
       </div>
       <button
         type="submit"
-        disabled={isLoading}
+        disabled={isLoading || isLocked}
         className="w-full bg-[#FF6B35] hover:bg-[#e55a2b] text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 min-h-[44px]"
       >
         {isLoading ? (
           <>
             <Loader2 className="animate-spin me-2" size={20} />
             Scraping Leads...
+          </>
+        ) : isLocked ? (
+          <>
+            <Search className="me-2" size={20} />
+            Limit Reached
           </>
         ) : (
           <>
