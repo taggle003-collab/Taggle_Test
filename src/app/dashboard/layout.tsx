@@ -18,12 +18,13 @@ export default async function DashboardLayout({
   }
 
   const user = await currentUser();
-  const isAdmin = user?.emailAddresses[0]?.emailAddress === ADMIN_EMAIL;
+  const userEmail = user?.emailAddresses[0]?.emailAddress;
+  const isAdmin = userEmail === ADMIN_EMAIL;
   const userPlanData = await getUserPlan(userId);
   const userPlan = isAdmin ? "pro" : (userPlanData?.plan || "lite");
 
   return (
-    <DashboardLayoutComponent isAdmin={isAdmin} userPlan={userPlan}>
+    <DashboardLayoutComponent isAdmin={isAdmin} userPlan={userPlan} userEmail={userEmail}>
       <PostSignupHandler />
       {children}
     </DashboardLayoutComponent>

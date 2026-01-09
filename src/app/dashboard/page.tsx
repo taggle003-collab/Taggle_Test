@@ -1,5 +1,6 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { getUserPlan, updateUserPlan } from "@/lib/user-plan";
+import { hasFeature, getFeatureLevel, getLeadsLimit } from "@/lib/feature-access";
 import { redirect } from "next/navigation";
 import LiteDashboard from "./components/LiteDashboard";
 import SoloDashboard from "./components/SoloDashboard";
@@ -12,9 +13,9 @@ export default async function DashboardPage({
 }) {
   const user = await currentUser();
   if (!user) return redirect("/sign-in");
-  
+
   let userPlan = await getUserPlan(user.id);
-  
+
   // Initialize trial for new users without a plan
   if (!userPlan?.plan && !userPlan?.trialStartedAt) {
     await updateUserPlan(user.id, {
@@ -25,11 +26,18 @@ export default async function DashboardPage({
     });
     userPlan = await getUserPlan(user.id);
   }
-  
-  // Await the searchParams promise for Next.js 16
+
+  // Await searchParams promise for Next.js 16
   const params = await searchParams;
-  const isAdmin = user?.emailAddresses[0]?.emailAddress === "taggle003@gmail.com";
-  const plan = isAdmin ? "pro" : (userPlan?.plan || "lite");
+  const userEmail = user?.emailAddresses[0]?.emailAddress;
+  const isAdmin = userEmail === "taggle003@gmail.com";
+  const plan = isAdmin ? "pro" : (userPlan?.plan || "lite") as "lite" | "solo" | "pro";
+
+  const canScrape = hasFeature(plan, userEmail, "leadScraping");
+  const crmLevel = getFeatureLevel(plan, userEmail, "crmIntegrations");
+  const hasNotifications = hasFeature(plan, userEmail, "realtimeNotifications");
+  const analyticsLevel = getFeatureLevel(plan, userEmail, "advancedAnalytics");
+  const leadsLimit = getLeadsLimit(plan, userEmail);
 
   // Calculate trial remaining days
   let trialDaysLeft = null;
@@ -52,7 +60,7 @@ export default async function DashboardPage({
       {params.payment === "return" && (
         <div className="bg-blue-600 text-white px-4 py-3 rounded-lg mb-8">
           <p className="font-semibold">
-            Payment received. We’re activating your plan now — this can take a moment.
+            Payment received. We're activating your plan now — this can take a moment.
           </p>
         </div>
       )}
@@ -66,7 +74,7 @@ export default async function DashboardPage({
             Email: {user?.emailAddresses[0]?.emailAddress}
           </p>
         </div>
-        
+
         {trialDaysLeft !== null && (
           <div className="bg-orange-600/20 border border-orange-600 text-orange-500 px-4 py-2 rounded-full text-sm font-semibold">
             ⚡️ Free Trial: {trialDaysLeft} days remaining
