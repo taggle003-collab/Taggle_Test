@@ -14,7 +14,8 @@ import {
   ShieldCheck,
   Home,
   Contact,
-  Lock
+  Lock,
+  BarChart3
 } from "lucide-react";
 import { SignOutButton } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,14 @@ const Sidebar = ({ isAdmin, userPlan, userEmail }: SidebarProps) => {
       name: "CRM",
       icon: Contact,
       href: "/dashboard/crm",
+    });
+  }
+
+  if (hasFeature(userPlan, userEmail, "advancedAnalytics")) {
+    menuItems.push({
+      name: "Analytics",
+      icon: BarChart3,
+      href: "/dashboard/analytics",
     });
   }
 

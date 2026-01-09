@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import ICPForm, { ICPCriteria } from "./ICPForm";
 import LeadCard from "./LeadCard";
 import Pagination from "./Pagination";
