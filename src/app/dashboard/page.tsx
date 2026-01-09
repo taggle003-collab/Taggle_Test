@@ -1,5 +1,6 @@
 import { currentUser } from "@clerk/nextjs/server";
-import { getUserPlan } from "@/lib/user-plan";
+import { getUserPlan, updateUserPlan } from "@/lib/user-plan";
+import { redirect } from "next/navigation";
 import LiteDashboard from "./components/LiteDashboard";
 import SoloDashboard from "./components/SoloDashboard";
 import ProDashboard from "./components/ProDashboard";
@@ -10,12 +11,34 @@ export default async function DashboardPage({
   searchParams: Promise<{ payment?: string }>;
 }) {
   const user = await currentUser();
-  const userPlan = await getUserPlan(user?.id || "");
+  if (!user) return redirect("/sign-in");
+  
+  let userPlan = await getUserPlan(user.id);
+  
+  // Initialize trial for new users without a plan
+  if (!userPlan?.plan && !userPlan?.trialStartedAt) {
+    await updateUserPlan(user.id, {
+      plan: "lite",
+      trialStartedAt: new Date().toISOString(),
+      leadsUsed: 0,
+      totalLeads: 100
+    });
+    userPlan = await getUserPlan(user.id);
+  }
   
   // Await the searchParams promise for Next.js 16
   const params = await searchParams;
   const isAdmin = user?.emailAddresses[0]?.emailAddress === "taggle003@gmail.com";
   const plan = isAdmin ? "pro" : (userPlan?.plan || "lite");
+
+  // Calculate trial remaining days
+  let trialDaysLeft = null;
+  if (userPlan?.trialStartedAt && plan === "lite") {
+    const start = new Date(userPlan.trialStartedAt);
+    const now = new Date();
+    const diffTime = 7 * 24 * 60 * 60 * 1000 - (now.getTime() - start.getTime());
+    trialDaysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+  }
 
   return (
     <div className="py-8">
@@ -34,13 +57,21 @@ export default async function DashboardPage({
         </div>
       )}
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">
-          Welcome, {user?.firstName || "User"}!
-        </h1>
-        <p className="text-gray-400">
-          Email: {user?.emailAddresses[0]?.emailAddress}
-        </p>
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">
+            Welcome, {user?.firstName || "User"}!
+          </h1>
+          <p className="text-gray-400">
+            Email: {user?.emailAddresses[0]?.emailAddress}
+          </p>
+        </div>
+        
+        {trialDaysLeft !== null && (
+          <div className="bg-orange-600/20 border border-orange-600 text-orange-500 px-4 py-2 rounded-full text-sm font-semibold">
+            ⚡️ Free Trial: {trialDaysLeft} days remaining
+          </div>
+        )}
       </div>
 
       {/* Render Plan-Specific Dashboard */}

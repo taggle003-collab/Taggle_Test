@@ -1,6 +1,11 @@
+"use client";
+import { useRouter } from "next/navigation";
+
 const CTA = () => {
+  const router = useRouter();
+  
   const handleGetEarlyAccess = () => {
-    window.location.href = "/sign-up";
+    router.push("/sign-up");
   };
   return (
     <div className="bg-orange-600">

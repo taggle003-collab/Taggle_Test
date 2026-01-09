@@ -37,7 +37,7 @@ const Header = () => {
           </div>
           <div className="ml-10 space-x-4 flex items-center">
             <Link
-              href="#"
+              href="/sign-up"
               className="inline-block bg-orange-600 py-2 px-4 border border-transparent rounded-md text-base font-medium text-white hover:bg-orange-700 transition-colors"
             >
               Get Early Access
