@@ -6,6 +6,7 @@ export interface UserPlanMetadata {
   productId?: string;
   orderId?: string;
   purchaseDate?: string;
+  trialStartedAt?: string;
   leadsUsed?: number;
   totalLeads?: number;
   [key: string]: unknown;

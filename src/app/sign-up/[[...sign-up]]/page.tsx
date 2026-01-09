@@ -18,7 +18,11 @@ export default function SignUpPage() {
   const isClerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-4 py-12">
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-bold text-white mb-2">Start Your 7-Day Free Trial</h1>
+        <p className="text-gray-400">Join Taggle and start getting verified leads today.</p>
+      </div>
       <div className="w-full max-w-md">
         {isClerkConfigured ? (
           <SignUp 
