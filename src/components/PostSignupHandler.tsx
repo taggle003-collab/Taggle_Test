@@ -21,8 +21,8 @@ export default function PostSignupHandler() {
 
     // Find the plan key that matches the pending plan
     const planKey = Object.keys(DODO_PLANS).find(
-      key => DODO_PLANS[key].name.toLowerCase() === pendingPlan.toLowerCase()
-    );
+      key => DODO_PLANS[key as keyof typeof DODO_PLANS].name.toLowerCase() === pendingPlan.toLowerCase()
+    ) as keyof typeof DODO_PLANS | undefined;
 
     if (!planKey) {
       console.warn("Unknown plan:", pendingPlan);
