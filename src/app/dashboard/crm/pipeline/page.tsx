@@ -1,40 +1,33 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { getUserPlan } from "@/lib/user-plan";
+import { hasFeature, getFeatureLevel } from "@/lib/feature-access";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-
-const ADMIN_EMAIL = "taggle003@gmail.com";
+import UpgradePrompt from "@/components/UpgradePrompt";
 
 export default async function PipelinePage() {
   const user = await currentUser();
   if (!user) return redirect("/sign-in");
 
+  const userEmail = user?.emailAddresses[0]?.emailAddress;
   const userPlanData = await getUserPlan(user.id);
-  const isAdmin = user?.emailAddresses[0]?.emailAddress === ADMIN_EMAIL;
-  const plan = isAdmin ? "pro" : (userPlanData?.plan || "lite");
+  const plan = userPlanData?.plan as "lite" | "solo" | "pro" | undefined;
+  const hasCRM = hasFeature(plan, userEmail, "crmAccess");
+  const crmLevel = getFeatureLevel(plan, userEmail, "crmIntegrations");
 
-  // Lite users see upgrade prompt
-  if (plan === "lite") {
+  if (!hasCRM) {
     return (
       <div className="py-8">
-        <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-8 text-center">
-          <h1 className="text-3xl font-bold text-white mb-4">CRM Access Required</h1>
-          <p className="text-gray-300 mb-6">
-            Pipeline management is available with Solo and Pro plans. Upgrade to track deals through your sales process.
-          </p>
-          <Link
-            href="/#pricing"
-            className="inline-block bg-[#FF6B35] text-white px-8 py-3 rounded-lg font-semibold hover:bg-orange-700 transition"
-          >
-            View Pricing Plans
-          </Link>
-        </div>
+        <UpgradePrompt
+          requiredPlan="Solo"
+          featureName="Pipeline Management"
+          description="Pipeline management is available with Solo and Pro plans. Upgrade to track deals through your sales process."
+        />
       </div>
     );
   }
 
-  // Solo users see limited pipeline
-  if (plan === "solo") {
+  if (crmLevel === "limited") {
     return (
       <div className="py-8">
         <div className="mb-8">
@@ -69,13 +62,12 @@ export default async function PipelinePage() {
     );
   }
 
-  // Pro users see full pipeline
   return (
     <div className="py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">Pipeline</h1>
         <p className="text-gray-400">
-          Track your deals through the sales process with full kanban board
+          Track your deals through sales process with full kanban board
         </p>
       </div>
 

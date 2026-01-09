@@ -1,49 +1,40 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { getUserPlan } from "@/lib/user-plan";
+import { hasFeature, getFeatureLevel } from "@/lib/feature-access";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-
-const ADMIN_EMAIL = "taggle003@gmail.com";
+import UpgradePrompt from "@/components/UpgradePrompt";
 
 export default async function CRMPage() {
   const user = await currentUser();
   if (!user) return redirect("/sign-in");
 
+  const userEmail = user?.emailAddresses[0]?.emailAddress;
   const userPlanData = await getUserPlan(user.id);
-  const isAdmin = user?.emailAddresses[0]?.emailAddress === ADMIN_EMAIL;
-  const plan = isAdmin ? "pro" : (userPlanData?.plan || "lite");
+  const plan = userPlanData?.plan as "lite" | "solo" | "pro" | undefined;
+  const hasCRM = hasFeature(plan, userEmail, "crmAccess");
+  const crmLevel = getFeatureLevel(plan, userEmail, "crmIntegrations");
 
-  // Lite users see upgrade prompt
-  if (plan === "lite") {
+  if (!hasCRM) {
     return (
       <div className="py-8">
-        <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-8 text-center">
-          <h1 className="text-3xl font-bold text-white mb-4">CRM Access Required</h1>
-          <p className="text-gray-300 mb-6">
-            The built-in CRM is available with Solo and Pro plans. Upgrade to manage your leads, track deals, and automate your sales pipeline.
-          </p>
-          <div className="space-y-3">
-            <Link
-              href="/#pricing"
-              className="inline-block bg-[#FF6B35] text-white px-8 py-3 rounded-lg font-semibold hover:bg-orange-700 transition"
-            >
-              View Pricing Plans
-            </Link>
-          </div>
-        </div>
+        <UpgradePrompt
+          requiredPlan="Solo"
+          featureName="CRM Access"
+          description="The built-in CRM is available with Solo and Pro plans. Upgrade to manage your leads, track deals, and automate your sales pipeline."
+        />
       </div>
     );
   }
 
-  // Solo and Pro users see CRM dashboard
   return (
     <div className="py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">
-          {plan === "solo" ? "Limited CRM" : "Full CRM"}
+          {crmLevel === "limited" ? "Limited CRM" : "Full CRM"}
         </h1>
         <p className="text-gray-400">
-          {plan === "solo"
+          {crmLevel === "limited"
             ? "Manage your contacts and track basic activities"
             : "Complete CRM with contacts, pipeline, tasks, and automation"}
         </p>
@@ -114,7 +105,7 @@ export default async function CRMPage() {
         </div>
       </div>
 
-      {plan === "solo" && (
+      {crmLevel === "limited" && (
         <div className="mt-8 bg-blue-900/30 border border-blue-600 rounded-lg p-6">
           <p className="text-blue-200">
             📊 Limited CRM: You have access to basic contact management and activity tracking.
@@ -123,7 +114,7 @@ export default async function CRMPage() {
         </div>
       )}
 
-      {plan === "pro" && (
+      {crmLevel === "full" && (
         <div className="mt-8 bg-green-900/30 border border-green-600 rounded-lg p-6">
           <p className="text-green-200">
             🚀 Full CRM: You have access to all CRM features including contacts, pipeline, activities, tasks, and automation.

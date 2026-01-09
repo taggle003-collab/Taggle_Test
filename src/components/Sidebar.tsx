@@ -18,13 +18,15 @@ import {
 } from "lucide-react";
 import { SignOutButton } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
+import { hasFeature } from "@/lib/feature-access";
 
 interface SidebarProps {
   isAdmin?: boolean;
   userPlan?: "lite" | "solo" | "pro" | null;
+  userEmail?: string;
 }
 
-const Sidebar = ({ isAdmin, userPlan }: SidebarProps) => {
+const Sidebar = ({ isAdmin, userPlan, userEmail }: SidebarProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
 
@@ -39,15 +41,17 @@ const Sidebar = ({ isAdmin, userPlan }: SidebarProps) => {
       icon: LayoutDashboard,
       href: "/dashboard",
     },
-    {
+  ];
+
+  if (hasFeature(userPlan, userEmail, "leadScraping")) {
+    menuItems.push({
       name: "Lead Scraper",
       icon: Search,
       href: "/dashboard/leads",
-    },
-  ];
+    });
+  }
 
-  // Add CRM menu item only for Solo and Pro users
-  if (userPlan && (userPlan === "solo" || userPlan === "pro")) {
+  if (hasFeature(userPlan, userEmail, "crmAccess")) {
     menuItems.push({
       name: "CRM",
       icon: Contact,

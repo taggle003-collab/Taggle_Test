@@ -14,6 +14,17 @@ export const DODO_PLANS = {
       "No Real-time Notifications",
       "No Advanced Analytics",
     ],
+    featureAccess: {
+      leadScraping: true,
+      leadsPerMonth: 100,
+      inboxDelivery: "inbox_only",
+      icpMatching: "basic",
+      crmAccess: false,
+      crmIntegrations: false,
+      automations: false,
+      realtimeNotifications: false,
+      advancedAnalytics: false,
+    },
   },
   solo: {
     name: "Solo",
@@ -22,6 +33,7 @@ export const DODO_PLANS = {
     monthlyPrice: 29,
     yearlyPrice: 319,
     leads: 500,
+    recommended: true,
     features: [
       "500 verified leads/month",
       "Inbox delivery with insights",
@@ -31,6 +43,17 @@ export const DODO_PLANS = {
       "Real-time Notifications",
       "Limited Advanced Analytics",
     ],
+    featureAccess: {
+      leadScraping: true,
+      leadsPerMonth: 500,
+      inboxDelivery: "inbox_with_insights",
+      icpMatching: "advanced",
+      crmAccess: true,
+      crmIntegrations: "limited",
+      automations: "limited",
+      realtimeNotifications: true,
+      advancedAnalytics: "limited",
+    },
   },
   pro: {
     name: "Pro",
@@ -48,6 +71,17 @@ export const DODO_PLANS = {
       "Real-time Notifications",
       "Full Advanced Analytics",
     ],
+    featureAccess: {
+      leadScraping: true,
+      leadsPerMonth: 1500,
+      inboxDelivery: "inbox_with_insights",
+      icpMatching: "advanced",
+      crmAccess: true,
+      crmIntegrations: "full",
+      automations: "full",
+      realtimeNotifications: true,
+      advancedAnalytics: "full",
+    },
   },
 };
 

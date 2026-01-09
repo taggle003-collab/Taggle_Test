@@ -4,7 +4,10 @@ import React, { useState } from "react";
 import ICPForm, { ICPCriteria } from "./ICPForm";
 import LeadCard from "./LeadCard";
 import Pagination from "./Pagination";
-import { Mail, Search, CheckCircle2, AlertCircle, Loader2, Copy, Trash2, Check, ArrowUpDown } from "lucide-react";
+import UpgradePrompt from "./UpgradePrompt";
+import { Mail, Search, CheckCircle2, AlertCircle, Loader2, Copy, Trash2, Check, ArrowUpDown, TrendingUp } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
+import { hasFeature, getLeadsLimit, getFeatureLevel } from "@/lib/feature-access";
 
 export interface Lead {
   id: string;
@@ -37,6 +40,16 @@ type SortField = "name" | "email" | "company" | "title" | "location" | "size" | 
 type SortOrder = "asc" | "desc";
 
 const LeadScraper = () => {
+  const { user } = useUser();
+  const userPlan = user?.unsafeMetadata?.plan as "lite" | "solo" | "pro" | undefined;
+  const userEmail = user?.emailAddresses[0]?.emailAddress;
+
+  const canScrape = hasFeature(userPlan, userEmail, "leadScraping");
+  const leadsLimit = getLeadsLimit(userPlan, userEmail);
+  const crmLevel = getFeatureLevel(userPlan, userEmail, "crmIntegrations");
+  const hasNotifications = hasFeature(userPlan, userEmail, "realtimeNotifications");
+  const analyticsLevel = getFeatureLevel(userPlan, userEmail, "advancedAnalytics");
+
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [displayedLeads, setDisplayedLeads] = useState<Lead[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
@@ -359,13 +372,30 @@ const LeadScraper = () => {
     });
   };
 
+  if (!canScrape) {
+    return (
+      <div className="py-8">
+        <UpgradePrompt
+          requiredPlan="Lite"
+          featureName="Lead Scraping"
+          description="Lead scraping is available in all plans. Please upgrade to get started."
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="bg-[#1a1a1a] p-4 sm:p-6 lg:p-8 rounded-2xl border border-gray-800 shadow-xl">
-        <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Define Your Ideal Customer Profile</h2>
-        <ICPForm 
-          onScrape={handleScrape} 
-          isLoading={isLoading} 
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Define Your Ideal Customer Profile</h2>
+          <div className="text-sm text-gray-400">
+            Leads Limit: <span className="text-[#FF6B35] font-semibold">{leadsLimit >= 999999 ? "Unlimited" : leadsLimit}</span>/month
+          </div>
+        </div>
+        <ICPForm
+          onScrape={handleScrape}
+          isLoading={isLoading}
           searchesRemaining={searchesRemaining}
           rateLimitReset={rateLimitReset}
           countdown={countdown}
@@ -600,6 +630,91 @@ const LeadScraper = () => {
               onPageChange={handlePageChange}
               onItemsPerPageChange={handleItemsPerPageChange}
             />
+          )}
+        </div>
+      )}
+
+      {hasNotifications && allLeads.length > 0 && (
+        <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4 flex items-start gap-3">
+          <div className="flex-shrink-0 mt-0.5">
+            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+          </div>
+          <div>
+            <p className="text-blue-200 text-sm font-medium">Real-time Notifications Enabled</p>
+            <p className="text-blue-300/70 text-xs mt-1">You'll receive instant alerts for new leads matching your ICP</p>
+          </div>
+        </div>
+      )}
+
+      {crmLevel !== "none" && allLeads.length > 0 && (
+        <div className="bg-[#1a1a1a] border border-gray-800 rounded-lg p-4 sm:p-6">
+          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            {crmLevel === "limited" ? "Limited CRM Actions" : "CRM Integration"}
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Link
+              href="/dashboard/crm"
+              className="bg-gray-800 hover:bg-gray-700 transition rounded-lg p-4 text-center"
+            >
+              <p className="text-white font-semibold mb-1">View in CRM</p>
+              <p className="text-gray-400 text-sm">Manage all contacts</p>
+            </Link>
+            {crmLevel === "full" && (
+              <>
+                <Link
+                  href="/dashboard/crm/pipeline"
+                  className="bg-gray-800 hover:bg-gray-700 transition rounded-lg p-4 text-center"
+                >
+                  <p className="text-white font-semibold mb-1">Add to Pipeline</p>
+                  <p className="text-gray-400 text-sm">Track deal progress</p>
+                </Link>
+              </>
+            )}
+          </div>
+          {crmLevel === "limited" && (
+            <p className="text-gray-500 text-xs mt-3">
+              Upgrade to Pro for full pipeline management, tasks, and automation
+            </p>
+          )}
+        </div>
+      )}
+
+      {analyticsLevel !== "none" && allLeads.length > 0 && (
+        <div className="bg-[#1a1a1a] border border-gray-800 rounded-lg p-4 sm:p-6">
+          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <TrendingUp size={20} className="text-[#FF6B35]" />
+            {analyticsLevel === "limited" ? "Basic Analytics" : "Advanced Analytics"}
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="bg-gray-800 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-[#FF6B35]">{allLeads.length}</div>
+              <div className="text-gray-400 text-xs mt-1">Total Leads</div>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-green-400">
+                {allLeads.filter(l => l.verified).length}
+              </div>
+              <div className="text-gray-400 text-xs mt-1">Verified</div>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-blue-400">
+                {Math.round(allLeads.reduce((acc, l) => acc + (l.accuracy || 85), 0) / allLeads.length)}%
+              </div>
+              <div className="text-gray-400 text-xs mt-1">Avg Accuracy</div>
+            </div>
+            {analyticsLevel === "full" && (
+              <div className="bg-gray-800 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-purple-400">
+                  {new Set(allLeads.map(l => l.industry)).size}
+                </div>
+                <div className="text-gray-400 text-xs mt-1">Industries</div>
+              </div>
+            )}
+          </div>
+          {analyticsLevel === "limited" && (
+            <p className="text-gray-500 text-xs mt-3">
+              Upgrade to Pro for detailed analytics, industry breakdown, and conversion tracking
+            </p>
           )}
         </div>
       )}

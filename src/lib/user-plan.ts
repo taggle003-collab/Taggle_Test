@@ -1,4 +1,7 @@
 import { clerkClient } from "@clerk/nextjs/server";
+import { DODO_PLANS } from "./dodo-config";
+
+type PlanType = keyof typeof DODO_PLANS;
 
 export interface UserPlanMetadata {
   plan?: "lite" | "solo" | "pro";
