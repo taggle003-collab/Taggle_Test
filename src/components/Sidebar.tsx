@@ -3,28 +3,37 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { 
-  LayoutDashboard, 
-  Search, 
-  Settings, 
-  User, 
-  LogOut, 
-  Menu, 
+import {
+  LayoutDashboard,
+  Search,
+  Settings,
+  User,
+  LogOut,
+  Menu,
   X,
-  ShieldCheck
+  ShieldCheck,
+  Home,
+  Contact,
+  Lock
 } from "lucide-react";
 import { SignOutButton } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   isAdmin?: boolean;
+  userPlan?: "lite" | "solo" | "pro" | null;
 }
 
-const Sidebar = ({ isAdmin }: SidebarProps) => {
+const Sidebar = ({ isAdmin, userPlan }: SidebarProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
 
   const menuItems = [
+    {
+      name: "Home",
+      icon: Home,
+      href: "/",
+    },
     {
       name: "Dashboard",
       icon: LayoutDashboard,
@@ -35,6 +44,18 @@ const Sidebar = ({ isAdmin }: SidebarProps) => {
       icon: Search,
       href: "/dashboard/leads",
     },
+  ];
+
+  // Add CRM menu item only for Solo and Pro users
+  if (userPlan && (userPlan === "solo" || userPlan === "pro")) {
+    menuItems.push({
+      name: "CRM",
+      icon: Contact,
+      href: "/dashboard/crm",
+    });
+  }
+
+  menuItems.push(
     {
       name: "Settings",
       icon: Settings,
@@ -44,8 +65,8 @@ const Sidebar = ({ isAdmin }: SidebarProps) => {
       name: "Profile",
       icon: User,
       href: "/dashboard/profile",
-    },
-  ];
+    }
+  );
 
   if (isAdmin) {
     menuItems.push({

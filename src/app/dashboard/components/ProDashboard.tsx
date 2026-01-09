@@ -50,12 +50,13 @@ export default function ProDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-gray-800 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">CRM Integrations</h3>
-          <p className="text-gray-400 mb-4">Full integration with major CRM platforms.</p>
+          <h3 className="text-lg font-semibold text-white mb-4">Built-in CRM</h3>
+          <p className="text-gray-400 mb-4">Native CRM with all features included.</p>
           <ul className="space-y-2">
-            <li className="text-green-400">✓ Salesforce</li>
-            <li className="text-green-400">✓ HubSpot</li>
-            <li className="text-green-400">✓ Pipedrive</li>
+            <li className="text-green-400">✓ Full Contact Management</li>
+            <li className="text-green-400">✓ Pipeline & Deals</li>
+            <li className="text-green-400">✓ Activity Tracking</li>
+            <li className="text-green-400">✓ Task Management</li>
           </ul>
         </div>
         <div className="bg-gray-800 rounded-lg p-6">
