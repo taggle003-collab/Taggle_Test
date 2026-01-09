@@ -1,9 +1,9 @@
 import { DODO_PLANS } from "./dodo-config";
 
-type PlanType = keyof typeof DODO_PLANS;
+type PlanType = keyof typeof DODO_PLANS | null | undefined;
 
 export const hasFeature = (
-  userPlan: PlanType | undefined,
+  userPlan: PlanType,
   userEmail: string | undefined,
   featureName: string
 ): boolean => {
@@ -34,7 +34,7 @@ export const hasFeature = (
 };
 
 export const getFeatureLevel = (
-  userPlan: PlanType | undefined,
+  userPlan: PlanType,
   userEmail: string | undefined,
   featureName: string
 ): "none" | "limited" | "full" => {
@@ -53,7 +53,7 @@ export const getFeatureLevel = (
   return "none";
 };
 
-export const getLeadsLimit = (userPlan: PlanType | undefined, userEmail: string | undefined): number => {
+export const getLeadsLimit = (userPlan: PlanType, userEmail: string | undefined): number => {
   if (userEmail === "taggle003@gmail.com") {
     return 999999;
   }
