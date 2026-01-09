@@ -17,7 +17,7 @@ export default function SoloDashboard() {
             <p className="text-xl font-bold text-white">Solo (Monthly)</p>
           </div>
           <div className="bg-gray-700 rounded-lg p-4">
-            <p className="text-gray-400 text-sm">CRM Integrations</p>
+            <p className="text-gray-400 text-sm">Built-in CRM</p>
             <p className="text-xl font-bold text-green-400">✓ Limited</p>
           </div>
         </div>
@@ -29,8 +29,8 @@ export default function SoloDashboard() {
           <p className="text-gray-400">Lead insights and analysis coming soon.</p>
         </div>
         <div className="bg-gray-800 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">CRM Integrations</h3>
-          <p className="text-gray-400">Connect with Salesforce or HubSpot.</p>
+          <h3 className="text-lg font-semibold text-white mb-4">Built-in CRM</h3>
+          <p className="text-gray-400">Manage contacts and track activities with our native CRM.</p>
         </div>
       </div>
 

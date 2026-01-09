@@ -21,7 +21,7 @@ export default function LiteDashboard() {
 
       <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-6">
         <p className="text-blue-200">
-          📧 Inbox delivery only. Upgrade to Solo for insights and CRM integrations.
+          📧 Inbox delivery only. Upgrade to Solo for built-in CRM and insights.
         </p>
       </div>
     </div>
