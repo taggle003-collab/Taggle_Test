@@ -14,8 +14,8 @@ import {
   ShieldCheck,
   Home,
   Contact,
-  Lock,
-  BarChart3
+  BarChart3,
+  Zap
 } from "lucide-react";
 import { SignOutButton } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
@@ -65,6 +65,14 @@ const Sidebar = ({ isAdmin, userPlan, userEmail }: SidebarProps) => {
       name: "Analytics",
       icon: BarChart3,
       href: "/dashboard/analytics",
+    });
+  }
+
+  if (hasFeature(userPlan, userEmail, "automations")) {
+    menuItems.push({
+      name: "Automations",
+      icon: Zap,
+      href: "/dashboard/automations",
     });
   }
 

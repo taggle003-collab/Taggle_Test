@@ -159,12 +159,33 @@ function PricingContent() {
 
                   {/* Features */}
                   <div className="space-y-3">
-                    {plan.features.map((feature, idx) => (
-                      <div key={idx} className="flex items-start gap-3">
-                        <span className="text-orange-600 mt-1">✓</span>
-                        <span className="text-gray-300 text-sm">{feature}</span>
-                      </div>
-                    ))}
+                    {plan.features.map((feature, idx) => {
+                      const trimmed = feature.trim();
+                      const isSubItem = trimmed.startsWith("-");
+                      const isNegative = trimmed.toLowerCase().startsWith("no ");
+
+                      if (isSubItem) {
+                        return (
+                          <div key={idx} className="flex items-start gap-3 pl-6">
+                            <span className="text-gray-500 mt-1">•</span>
+                            <span className="text-gray-400 text-sm">{trimmed.replace(/^-[\s]*/, "")}</span>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={idx} className="flex items-start gap-3">
+                          <span
+                            className={
+                              isNegative ? "text-gray-500 mt-1" : "text-orange-600 mt-1"
+                            }
+                          >
+                            {isNegative ? "✗" : "✓"}
+                          </span>
+                          <span className="text-gray-300 text-sm">{feature}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
