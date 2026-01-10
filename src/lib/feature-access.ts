@@ -61,3 +61,32 @@ export const getLeadsLimit = (userPlan: PlanType, userEmail: string | undefined)
   if (!userPlan) return 0;
   return DODO_PLANS[userPlan].featureAccess.leadsPerMonth;
 };
+
+export const getICPMatchingLevel = (
+  userPlan: PlanType,
+  userEmail: string | undefined
+): "basic" | "advanced" => {
+  if (userEmail === "taggle003@gmail.com") {
+    return "advanced";
+  }
+  
+  const level = getFeatureLevel(userPlan, userEmail, "icpMatching");
+  if (level === "none") return "basic";
+  return level === "full" ? "advanced" : "basic";
+};
+
+export const getMaxSavedICPProfiles = (
+  userPlan: PlanType,
+  userEmail: string | undefined
+): number => {
+  if (userEmail === "taggle003@gmail.com") {
+    return 999;
+  }
+  
+  if (!userPlan) return 0;
+  
+  const level = getFeatureLevel(userPlan, userEmail, "icpMatching");
+  if (userPlan === "solo") return 3;
+  if (userPlan === "pro") return 999;
+  return 0;
+};
