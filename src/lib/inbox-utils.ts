@@ -4,6 +4,10 @@
 // ======================================
 
 import { getFeatureLevel } from './feature-access';
+import { InboxStats } from '@/lib/inbox-types';
+
+// Re-export InboxStats for convenience
+export { InboxStats };
 
 export interface LeadBatch {
   id: string;
@@ -643,7 +647,7 @@ export function getStorageLimit(): number {
   }
 }
 
-export function getAllInboxStats(): any {
+export function getAllInboxStats(): InboxStats {
   const batches = getAllLeadBatchesFromStorage();
   const totalBatches = batches.length;
   const totalLeads = batches.reduce((sum, batch) => sum + batch.totalLeads, 0);
