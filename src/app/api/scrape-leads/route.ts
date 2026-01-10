@@ -297,6 +297,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { 
           error: "Authentication failed", 
+          message: "Authentication failed. Please sign in again.",
           details: authError.message,
           clerkError: true,
           code: authError.code || "auth_failed",
@@ -308,7 +309,10 @@ export async function POST(req: Request) {
     
     if (!userId) {
       console.log("[SCRAPE_LEADS] No userId found, returning 401");
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized", message: "Authentication error. Please sign in again." },
+        { status: 401 }
+      );
     }
 
     console.log("[SCRAPE_LEADS] Getting Clerk client for user:", userId);
@@ -337,6 +341,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { 
           error: "Failed to fetch user data", 
+          message: "Could not retrieve user information. Please try again.",
           details: userError.message,
           clerkError: true,
           code: userError.code || "user_fetch_failed"
@@ -403,6 +408,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { 
           error: "Invalid request body", 
+          message: "The request body is invalid.",
           details: "Request body must be valid JSON object"
         },
         { status: 400 }
@@ -417,14 +423,22 @@ export async function POST(req: Request) {
     
     if (isNaN(pageNum) || pageNum < 1) {
       return NextResponse.json(
-        { error: "Invalid page parameter", details: "Page must be a positive number" },
+        { 
+          error: "Invalid page parameter", 
+          message: "Invalid page number.",
+          details: "Page must be a positive number" 
+        },
         { status: 400 }
       );
     }
     
     if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
       return NextResponse.json(
-        { error: "Invalid limit parameter", details: "Limit must be between 1 and 100" },
+        { 
+          error: "Invalid limit parameter", 
+          message: "Invalid limit value.",
+          details: "Limit must be between 1 and 100" 
+        },
         { status: 400 }
       );
     }
@@ -521,6 +535,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { 
           error: "Clerk authentication error", 
+          message: "Authentication with Clerk failed.",
           details: error.message,
           clerkError: true,
           code: error.code || "clerk_error",
@@ -534,6 +549,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { 
         error: "Internal server error", 
+        message: "Something went wrong on our server. Please try again later.",
         details: error.message,
         type: error.name || "UnknownError"
       },
