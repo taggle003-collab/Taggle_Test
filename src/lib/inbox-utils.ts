@@ -4,53 +4,10 @@
 // ======================================
 
 import { getFeatureLevel } from './feature-access';
-import { InboxStats } from '@/lib/inbox-types';
+import { InboxStats, LeadBatch, ScrapedLead } from './inbox-types';
 
-// Re-export InboxStats for convenience
-export { InboxStats };
-
-export interface LeadBatch {
-  id: string;
-  name: string;
-  createdAt: string;
-  deliveredAt?: string;
-  totalLeads: number;
-  leads: ScrapedLead[];
-  icpCriteria?: any;
-  deliveryMethods: {
-    email?: boolean;
-    inApp: boolean;
-    export?: 'csv' | 'pdf' | null;
-  };
-  stats: {
-    verifiedCount: number;
-    averageQualityScore: number;
-    averageAccuracy: number;
-    icpMatchPercentage: number;
-  };
-}
-
-export interface ScrapedLead {
-  id: string;
-  name: string;
-  email: string;
-  company: string;
-  title: string;
-  location: string;
-  verified: boolean;
-  industry?: string;
-  companySize?: string;
-  notes?: string;
-  scrapedDate: string;
-  matchQualityScore?: number;
-  matchedCriteria?: string[];
-  engagementScore?: number;
-  source?: string;
-  accuracy?: number;
-  revenue?: string;
-  fundingStage?: string;
-  duplicateOf?: string;
-}
+// Re-export types for convenience
+export { InboxStats, LeadBatch, ScrapedLead };
 
 // Storage constants
 export const INBOX_BATCHES_STORAGE_KEY = 'taggle_lead_batches';
