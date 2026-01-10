@@ -1,6 +1,6 @@
 'use client';
 
-import { LimitedInsights, FullInsights } from '../../../lib/inbox-types';
+import { LimitedInsights, FullInsights } from '@/lib/inbox-types';
 
 interface QualityBreakdownChartProps {
   insights: LimitedInsights | FullInsights;

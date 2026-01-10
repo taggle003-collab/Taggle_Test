@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getFeatureLevel } from '../../../lib/feature-access';
-import { getAllLeadBatches, getAllInboxStats, InboxStats } from '../../../lib/inbox-utils';
-import { LeadBatch } from '../../../lib/inbox-types';
+import { getFeatureLevel } from '@/lib/feature-access';
+import { getAllLeadBatches, getAllInboxStats, InboxStats } from '@/lib/inbox-utils';
+import { LeadBatch } from '@/lib/inbox-types';
 
 // Components
 import { LiteInboxView } from './LiteInboxView';
