@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getFeatureLevel } from '@/lib/feature-access';
-import { getAllLeadBatches, getAllInboxStats, InboxStats } from '@/lib/inbox-utils';
-import { LeadBatch } from '@/lib/inbox-types';
+import { getAllLeadBatches, getAllInboxStats, InboxStats, LeadBatch } from '@/lib/inbox-utils';
 
 // Components
 import { LiteInboxView } from './LiteInboxView';
