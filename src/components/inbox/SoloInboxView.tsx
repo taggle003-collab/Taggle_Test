@@ -12,7 +12,7 @@ import { RecommendationsCard } from './RecommendationsCard';
 interface SoloInboxViewProps {
   batch: LeadBatch;
   onDeleteBatch: (batchId: string) => void;
-  userEmail: string;
+  userEmail?: string;
   onRefresh: () => void;
 }
 
@@ -49,6 +49,11 @@ export function SoloInboxView({ batch, onDeleteBatch, userEmail, onRefresh }: So
   });
 
   const handleSendEmail = async () => {
+    if (!userEmail) {
+      alert('Please sign in to send emails');
+      return;
+    }
+
     setIsSendingEmail(true);
     try {
       const response = await fetch('/api/inbox/send-batch-email', {
@@ -62,7 +67,7 @@ export function SoloInboxView({ batch, onDeleteBatch, userEmail, onRefresh }: So
           planLevel: 'limited',
         }),
       });
-      
+
       if (response.ok) {
         alert('Email sent with insights summary!');
       } else {

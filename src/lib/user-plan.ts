@@ -43,3 +43,28 @@ export async function getUserPlan(
     return null;
   }
 }
+
+// Client-side function to get plan from user metadata
+export function getUserPlanClient(): "lite" | "solo" | "pro" {
+  if (typeof window === 'undefined') return 'lite';
+
+  try {
+    // Check if there's a user object from Clerk
+    const clerkUser = (window as any).Clerk?.user;
+    if (clerkUser?.unsafeMetadata?.plan) {
+      return clerkUser.unsafeMetadata.plan as "lite" | "solo" | "pro";
+    }
+  } catch (error) {
+    console.error('Error getting client plan:', error);
+  }
+
+  // Default to lite
+  return 'lite';
+}
+
+export function getUserEmail(): string | undefined {
+  // This is a placeholder for client-side email access
+  // In client components, you should use Clerk hooks like useUser()
+  // This returns undefined to indicate the caller should get email from user context
+  return undefined;
+}

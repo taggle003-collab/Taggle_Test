@@ -9,7 +9,7 @@ import DashboardLayout from '../../../components/DashboardLayout';
 import { InboxContainer } from '../../../components/inbox/InboxContainer';
 
 // Utils
-import { getUserPlan, getUserEmail } from '../../../lib/user-plan';
+import { getUserPlanClient } from '../../../lib/user-plan';
 
 export default function InboxPage() {
   const [user, setUser] = useState<any>(null);
@@ -20,16 +20,17 @@ export default function InboxPage() {
     async function loadUserData() {
       try {
         const current = await currentUser();
+        const userEmail = current?.emailAddresses[0]?.emailAddress;
         const userData = {
-          plan: getUserPlan(),
-          email: getUserEmail(),
+          plan: getUserPlanClient(),
+          email: userEmail,
         };
         setUser(userData);
       } catch (error) {
         console.error('Error loading user data:', error);
         setUser({
-          plan: getUserPlan(),
-          email: getUserEmail(),
+          plan: getUserPlanClient(),
+          email: undefined,
         });
       } finally {
         setIsLoading(false);
