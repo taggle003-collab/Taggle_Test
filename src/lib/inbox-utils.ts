@@ -4,10 +4,7 @@
 // ======================================
 
 import { getFeatureLevel } from './feature-access';
-import { InboxStats, LeadBatch, ScrapedLead } from './inbox-types';
-
-// Re-export types for convenience
-export { InboxStats, LeadBatch, ScrapedLead };
+import type { InboxStats, LeadBatch, ScrapedLead } from './inbox-types';
 
 // Storage constants
 export const INBOX_BATCHES_STORAGE_KEY = 'taggle_lead_batches';
