@@ -13,7 +13,7 @@ import { StorageIndicator } from './StorageIndicator';
 
 interface InboxContainerProps {
   userPlan: string;
-  userEmail: string;
+  userEmail?: string;
   batchId?: string;
 }
 
@@ -22,8 +22,8 @@ export function InboxContainer({ userPlan, userEmail, batchId }: InboxContainerP
   const [stats, setStats] = useState<InboxStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(batchId || null);
-  
-  const planLevel = getFeatureLevel({ plan: userPlan } as any, userEmail);
+
+  const planLevel = getFeatureLevel(userPlan as 'lite' | 'solo' | 'pro' | null | undefined, userEmail, 'leadScraping');
 
   useEffect(() => {
     loadInboxData();

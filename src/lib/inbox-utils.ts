@@ -3,7 +3,6 @@
 // Lead Management & Insights Generation
 // ======================================
 
-import { getUserPlan, getUserEmail } from './user-plan';
 import { getFeatureLevel } from './feature-access';
 
 export interface LeadBatch {
@@ -607,14 +606,15 @@ function getAllLeadBatchesFromStorage(): LeadBatch[] {
   try {
     const stored = localStorage.getItem(INBOX_BATCHES_STORAGE_KEY);
     if (!stored) return [];
-    
+
     const batches = JSON.parse(stored) as LeadBatch[];
-    
+
     // Filter out old batches based on storage limits
+    // Default to 'none' (lite) if no plan info available
     const now = new Date();
-    const planLevel = getFeatureLevel({ plan: getUserPlan() } as any, getUserEmail());
+    const planLevel = getFeatureLevel(undefined, undefined, 'leadScraping');
     const daysToKeep = planLevel === 'full' ? 90 : planLevel === 'limited' ? 60 : 30;
-    
+
     return batches.filter(batch => {
       const batchDate = new Date(batch.createdAt);
       const daysDiff = (now.getTime() - batchDate.getTime()) / (1000 * 60 * 60 * 24);
@@ -635,7 +635,7 @@ function saveLeadBatchToStorage(batch: LeadBatch): void {
 
 // Helper to get storage limit based on plan
 export function getStorageLimit(): number {
-  const planLevel = getFeatureLevel({ plan: getUserPlan() } as any, getUserEmail());
+  const planLevel = getFeatureLevel(undefined, undefined, 'leadScraping');
   switch (planLevel) {
     case 'full': return 1500;
     case 'limited': return 500;

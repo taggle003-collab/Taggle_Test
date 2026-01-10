@@ -9,7 +9,7 @@ import { ExportMenu } from './ExportMenu';
 interface LiteInboxViewProps {
   batch: LeadBatch;
   onDeleteBatch: (batchId: string) => void;
-  userEmail: string;
+  userEmail?: string;
 }
 
 export function LiteInboxView({ batch, onDeleteBatch, userEmail }: LiteInboxViewProps) {
@@ -38,6 +38,11 @@ export function LiteInboxView({ batch, onDeleteBatch, userEmail }: LiteInboxView
   });
 
   const handleSendEmail = async () => {
+    if (!userEmail) {
+      alert('Please sign in to send emails');
+      return;
+    }
+
     setIsSendingEmail(true);
     try {
       // Call email API
@@ -52,7 +57,7 @@ export function LiteInboxView({ batch, onDeleteBatch, userEmail }: LiteInboxView
           planLevel: 'basic',
         }),
       });
-      
+
       if (response.ok) {
         alert('Email sent successfully!');
       } else {

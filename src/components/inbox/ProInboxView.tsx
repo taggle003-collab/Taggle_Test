@@ -13,7 +13,7 @@ import { AdvancedDashboard } from './AdvancedDashboard';
 interface ProInboxViewProps {
   batch: LeadBatch;
   onDeleteBatch: (batchId: string) => void;
-  userEmail: string;
+  userEmail?: string;
   onRefresh: () => void;
 }
 
@@ -70,6 +70,11 @@ export function ProInboxView({ batch, onDeleteBatch, userEmail, onRefresh }: Pro
   });
 
   const handleSendEmail = async () => {
+    if (!userEmail) {
+      alert('Please sign in to send emails');
+      return;
+    }
+
     setIsSendingEmail(true);
     try {
       const response = await fetch('/api/inbox/send-batch-email', {
@@ -83,7 +88,7 @@ export function ProInboxView({ batch, onDeleteBatch, userEmail, onRefresh }: Pro
           planLevel: 'full',
         }),
       });
-      
+
       if (response.ok) {
         alert('Detailed insights email sent with advanced analytics!');
       } else {
