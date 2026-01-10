@@ -2,44 +2,44 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { currentUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
 
 // Components
 import DashboardLayout from '../../../components/DashboardLayout';
 import { InboxContainer } from '../../../components/inbox/InboxContainer';
 
 // Utils
-import { getUserPlan, getUserEmail } from '../../../lib/user-plan';
+import { saveUserToLocalStorage, getUserPlanFromStorage, getUserEmailFromStorage } from '../../../lib/user-plan';
 
 export default function InboxPage() {
-  const [user, setUser] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, isLoaded } = useUser();
+  const [userPlan, setUserPlan] = useState<'lite' | 'solo' | 'pro' | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    async function loadUserData() {
-      try {
-        const current = await currentUser();
-        const userData = {
-          plan: getUserPlan(),
-          email: getUserEmail(),
-        };
-        setUser(userData);
-      } catch (error) {
-        console.error('Error loading user data:', error);
-        setUser({
-          plan: getUserPlan(),
-          email: getUserEmail(),
-        });
-      } finally {
-        setIsLoading(false);
-      }
+    // Try to get user data from localStorage first (for faster loading)
+    const storedPlan = getUserPlanFromStorage();
+    const storedEmail = getUserEmailFromStorage();
+
+    if (storedPlan) setUserPlan(storedPlan);
+    if (storedEmail) setUserEmail(storedEmail);
+
+    // Then get actual user data from Clerk
+    if (isLoaded && user) {
+      // Get plan from user metadata
+      const plan = user.unsafeMetadata?.plan as 'lite' | 'solo' | 'pro' | undefined;
+      const email = user.emailAddresses?.[0]?.emailAddress || null;
+
+      if (plan) setUserPlan(plan);
+      if (email) setUserEmail(email);
+
+      // Save to localStorage for future client-side access
+      saveUserToLocalStorage(plan || null, email);
     }
+  }, [user, isLoaded]);
 
-    loadUserData();
-  }, []);
-
-  if (isLoading) {
+  if (!isLoaded) {
     return (
       <DashboardLayout userPlan="lite" userEmail="">
         <div className="flex items-center justify-center h-64">
@@ -63,7 +63,7 @@ export default function InboxPage() {
   const batchId = searchParams.get('batch');
 
   return (
-    <DashboardLayout userPlan={user.plan} userEmail={user.email}>
+    <DashboardLayout userPlan={userPlan || 'lite'} userEmail={userEmail || ''}>
       <div className="p-6 bg-[#1a1a1a] min-h-screen">
         {/* Header */}
         <div className="mb-8">
@@ -74,9 +74,9 @@ export default function InboxPage() {
         </div>
 
         {/* Main Inbox Container */}
-        <InboxContainer 
-          userPlan={user.plan}
-          userEmail={user.email}
+        <InboxContainer
+          userPlan={userPlan || 'lite'}
+          userEmail={userEmail || ''}
           batchId={batchId || undefined}
         />
       </div>

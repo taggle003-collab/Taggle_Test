@@ -28,6 +28,8 @@ export const hasFeature = (
       return planFeatures.realtimeNotifications;
     case "advancedAnalytics":
       return planFeatures.advancedAnalytics !== false;
+    case "icpMatching":
+      return true; // All plans have ICP matching
     default:
       return false;
   }
@@ -45,6 +47,13 @@ export const getFeatureLevel = (
   if (!userPlan) return "none";
 
   const planFeatures = DODO_PLANS[userPlan].featureAccess;
+
+  // Special handling for icpMatching which uses "basic" | "advanced" instead of standard values
+  if (featureName === "icpMatching") {
+    const icpLevel = planFeatures.icpMatching as string;
+    if (icpLevel === "advanced") return "full";
+    return "limited"; // "basic" maps to "limited"
+  }
 
   const feature = planFeatures[featureName as keyof typeof planFeatures];
 
@@ -69,10 +78,13 @@ export const getICPMatchingLevel = (
   if (userEmail === "taggle003@gmail.com") {
     return "advanced";
   }
-  
-  const level = getFeatureLevel(userPlan, userEmail, "icpMatching");
-  if (level === "none") return "basic";
-  return level === "full" ? "advanced" : "basic";
+
+  if (!userPlan) return "basic";
+
+  // Get the icpMatching value directly from the plan
+  const icpLevel = DODO_PLANS[userPlan].featureAccess.icpMatching as string;
+  if (icpLevel === "advanced") return "advanced";
+  return "basic";
 };
 
 export const getMaxSavedICPProfiles = (
@@ -82,10 +94,9 @@ export const getMaxSavedICPProfiles = (
   if (userEmail === "taggle003@gmail.com") {
     return 999;
   }
-  
+
   if (!userPlan) return 0;
-  
-  const level = getFeatureLevel(userPlan, userEmail, "icpMatching");
+
   if (userPlan === "solo") return 3;
   if (userPlan === "pro") return 999;
   return 0;

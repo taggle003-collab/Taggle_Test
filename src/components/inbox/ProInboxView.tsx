@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LeadBatch, ScrapedLead, FullInsights } from '../../../lib/inbox-types';
-import { deleteLeadBatch, generateInsights } from '../../../lib/inbox-utils';
+import { LeadBatch, ScrapedLead, FullInsights } from '@/lib/inbox-types';
+import { deleteLeadBatch, generateInsights } from '@/lib/inbox-utils';
 import { LeadTable } from './LeadTable';
 import { ExportMenu } from './ExportMenu';
 import { QualityBreakdownChart } from './QualityBreakdownChart';

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { LeadBatch, ScrapedLead } from '../../../lib/inbox-types';
-import { deleteLeadBatch } from '../../../lib/inbox-utils';
+import { LeadBatch, ScrapedLead } from '@/lib/inbox-types';
+import { deleteLeadBatch } from '@/lib/inbox-utils';
 import { LeadTable } from './LeadTable';
 import { ExportMenu } from './ExportMenu';
 

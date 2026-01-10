@@ -3,50 +3,35 @@
 // Lead Management & Insights Generation
 // ======================================
 
-import { getUserPlan, getUserEmail } from './user-plan';
+import { Lead } from './types';
+import type { ScrapedLead, LeadBatch } from './inbox-types';
+import { getUserPlanFromStorage, getUserEmailFromStorage } from './user-plan';
 import { getFeatureLevel } from './feature-access';
 
-export interface LeadBatch {
-  id: string;
-  name: string;
-  createdAt: string;
-  deliveredAt?: string;
-  totalLeads: number;
-  leads: ScrapedLead[];
-  icpCriteria?: any;
-  deliveryMethods: {
-    email?: boolean;
-    inApp: boolean;
-    export?: 'csv' | 'pdf' | null;
-  };
-  stats: {
-    verifiedCount: number;
-    averageQualityScore: number;
-    averageAccuracy: number;
-    icpMatchPercentage: number;
+// Convert API Lead to ScrapedLead
+export function convertToScrapedLead(lead: Lead): ScrapedLead {
+  return {
+    id: lead.id,
+    name: `${lead.firstName} ${lead.lastName}`,
+    email: lead.email,
+    company: lead.company,
+    title: lead.title,
+    location: lead.location,
+    verified: lead.verified,
+    industry: lead.industry,
+    companySize: lead.companySize,
+    scrapedDate: new Date().toISOString(),
+    matchQualityScore: lead.matchQualityScore,
+    matchedCriteria: lead.matchedCriteria,
+    accuracy: lead.accuracy,
+    revenue: lead.annualRevenue,
+    fundingStage: lead.fundingStage,
   };
 }
 
-export interface ScrapedLead {
-  id: string;
-  name: string;
-  email: string;
-  company: string;
-  title: string;
-  location: string;
-  verified: boolean;
-  industry?: string;
-  companySize?: string;
-  notes?: string;
-  scrapedDate: string;
-  matchQualityScore?: number;
-  matchedCriteria?: string[];
-  engagementScore?: number;
-  source?: string;
-  accuracy?: number;
-  revenue?: string;
-  fundingStage?: string;
-  duplicateOf?: string;
+// Convert array of Leads to ScrapedLeads
+export function convertToScrapedLeads(leads: Lead[]): ScrapedLead[] {
+  return leads.map(convertToScrapedLead);
 }
 
 // Storage constants
@@ -62,29 +47,34 @@ export const QUALITY_COLORS = {
 
 // Utility functions
 export function createLeadBatch(
-  leads: ScrapedLead[],
+  leads: Lead[] | ScrapedLead[],
   icpCriteria?: any,
   deliveryMethod: 'email' | 'in-app' | 'export' = 'in-app'
 ): LeadBatch {
+  // Convert Leads to ScrapedLeads if necessary
+  const scrapedLeads = Array.isArray(leads) && leads.length > 0 && 'firstName' in leads[0]
+    ? convertToScrapedLeads(leads as Lead[])
+    : (leads as ScrapedLead[]);
+
   const batch: LeadBatch = {
     id: crypto.randomUUID(),
-    name: generateBatchName(leads, icpCriteria),
+    name: generateBatchName(scrapedLeads, icpCriteria),
     createdAt: new Date().toISOString(),
     deliveredAt: undefined,
-    totalLeads: leads.length,
-    leads,
+    totalLeads: scrapedLeads.length,
+    leads: scrapedLeads,
     icpCriteria,
     deliveryMethods: {
       email: deliveryMethod === 'email',
       inApp: true,
       export: deliveryMethod === 'export' ? 'csv' : null,
     },
-    stats: calculateBatchStats({ leads } as any),
+    stats: calculateBatchStats({ leads: scrapedLeads } as any),
   };
 
   // Save batch
   saveLeadBatchToStorage(batch);
-  
+
   // Mark as delivered if email was sent
   if (deliveryMethod === 'email') {
     batch.deliveredAt = new Date().toISOString();
@@ -136,22 +126,27 @@ function getMostCommonIndustry(leads: ScrapedLead[]): string {
 }
 
 export function getLeadBatchById(batchId: string): LeadBatch | null {
+  if (typeof window === 'undefined') return null;
+
   const batches = getAllLeadBatchesFromStorage();
   return batches.find(batch => batch.id === batchId) || null;
 }
 
 export function getAllLeadBatches(): LeadBatch[] {
+  if (typeof window === 'undefined') return [];
   return getAllLeadBatchesFromStorage();
 }
 
 export function deleteLeadBatch(batchId: string): boolean {
+  if (typeof window === 'undefined') return false;
+
   const batches = getAllLeadBatchesFromStorage();
   const filteredBatches = batches.filter(batch => batch.id !== batchId);
-  
+
   if (batches.length === filteredBatches.length) {
     return false; // Batch not found
   }
-  
+
   localStorage.setItem(INBOX_BATCHES_STORAGE_KEY, JSON.stringify(filteredBatches));
   return true;
 }
@@ -607,14 +602,16 @@ function getAllLeadBatchesFromStorage(): LeadBatch[] {
   try {
     const stored = localStorage.getItem(INBOX_BATCHES_STORAGE_KEY);
     if (!stored) return [];
-    
+
     const batches = JSON.parse(stored) as LeadBatch[];
-    
+
     // Filter out old batches based on storage limits
     const now = new Date();
-    const planLevel = getFeatureLevel({ plan: getUserPlan() } as any, getUserEmail());
+    const userPlan = getUserPlanFromStorage();
+    const userEmail = getUserEmailFromStorage();
+    const planLevel = getFeatureLevel(userPlan as any, userEmail || undefined, 'inboxDelivery');
     const daysToKeep = planLevel === 'full' ? 90 : planLevel === 'limited' ? 60 : 30;
-    
+
     return batches.filter(batch => {
       const batchDate = new Date(batch.createdAt);
       const daysDiff = (now.getTime() - batchDate.getTime()) / (1000 * 60 * 60 * 24);
@@ -635,7 +632,9 @@ function saveLeadBatchToStorage(batch: LeadBatch): void {
 
 // Helper to get storage limit based on plan
 export function getStorageLimit(): number {
-  const planLevel = getFeatureLevel({ plan: getUserPlan() } as any, getUserEmail());
+  const userPlan = getUserPlanFromStorage();
+  const userEmail = getUserEmailFromStorage();
+  const planLevel = getFeatureLevel(userPlan as any, userEmail || undefined, 'inboxDelivery');
   switch (planLevel) {
     case 'full': return 1500;
     case 'limited': return 500;
@@ -644,20 +643,33 @@ export function getStorageLimit(): number {
 }
 
 export function getAllInboxStats(): any {
+  if (typeof window === 'undefined') {
+    return {
+      totalBatches: 0,
+      totalLeads: 0,
+      averageQualityScore: 0,
+      storageUsed: 0,
+      storageLimit: 0,
+      mostCommonIndustry: 'Unknown',
+      bestPerformingIndustry: 'Unknown',
+      topLocation: 'Unknown',
+    };
+  }
+
   const batches = getAllLeadBatchesFromStorage();
   const totalBatches = batches.length;
   const totalLeads = batches.reduce((sum, batch) => sum + batch.totalLeads, 0);
-  const averageQualityScore = batches.length > 0 
+  const averageQualityScore = batches.length > 0
     ? Math.round(batches.reduce((sum, batch) => sum + batch.stats.averageQualityScore, 0) / batches.length)
     : 0;
   const storageUsed = totalLeads;
   const storageLimit = getStorageLimit();
-  
+
   const allLeads = batches.flatMap(batch => batch.leads);
   const mostCommonIndustry = getMostCommonIndustry(allLeads);
   const bestPerformingIndustry = getBestPerformingIndustry(allLeads);
   const topLocation = getTopLocation(allLeads);
-  
+
   return {
     totalBatches,
     totalLeads,

@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getFeatureLevel } from '../../../lib/feature-access';
-import { getAllLeadBatches, getAllInboxStats, InboxStats } from '../../../lib/inbox-utils';
-import { LeadBatch } from '../../../lib/inbox-types';
+import { getFeatureLevel } from '@/lib/feature-access';
+import { getAllLeadBatches, getAllInboxStats } from '@/lib/inbox-utils';
+import { LeadBatch, InboxStats } from '@/lib/inbox-types';
 
 // Components
 import { LiteInboxView } from './LiteInboxView';
@@ -22,8 +22,18 @@ export function InboxContainer({ userPlan, userEmail, batchId }: InboxContainerP
   const [stats, setStats] = useState<InboxStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(batchId || null);
-  
-  const planLevel = getFeatureLevel({ plan: userPlan } as any, userEmail);
+
+  // Map user plan to insights level
+  const getInsightsLevel = (): 'basic' | 'limited' | 'full' => {
+    switch (userPlan) {
+      case 'lite': return 'basic';
+      case 'solo': return 'limited';
+      case 'pro': return 'full';
+      default: return 'basic';
+    }
+  };
+
+  const planLevel = getInsightsLevel();
 
   useEffect(() => {
     loadInboxData();
