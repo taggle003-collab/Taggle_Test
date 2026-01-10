@@ -8,7 +8,7 @@ import Pagination from "./Pagination";
 import UpgradePrompt from "./UpgradePrompt";
 import { Mail, Search, CheckCircle2, AlertCircle, Loader2, Copy, Trash2, Check, ArrowUpDown, TrendingUp } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import { hasFeature, getLeadsLimit, getFeatureLevel } from "@/lib/feature-access";
+import { hasFeature, getLeadsLimit, getFeatureLevel, getICPMatchingLevel } from "@/lib/feature-access";
 
 export interface Lead {
   id: string;
@@ -26,6 +26,10 @@ export interface Lead {
   founderName?: string;
   founderTitle?: string;
   founderImage?: string;
+  fundingStage?: string;
+  annualRevenue?: string;
+  matchQualityScore?: number;
+  matchedCriteria?: string[];
 }
 
 interface PaginationInfo {
@@ -50,6 +54,7 @@ const LeadScraper = () => {
   const crmLevel = getFeatureLevel(userPlan, userEmail, "crmIntegrations");
   const hasNotifications = hasFeature(userPlan, userEmail, "realtimeNotifications");
   const analyticsLevel = getFeatureLevel(userPlan, userEmail, "advancedAnalytics");
+  const icpMatchingLevel = getICPMatchingLevel(userPlan, userEmail);
 
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [displayedLeads, setDisplayedLeads] = useState<Lead[]>([]);
@@ -388,8 +393,13 @@ const LeadScraper = () => {
   return (
     <div className="space-y-6">
       <div className="bg-[#1a1a1a] p-4 sm:p-6 lg:p-8 rounded-2xl border border-gray-800 shadow-xl">
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-white">Define Your Ideal Customer Profile</h2>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-2">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Define Your Ideal Customer Profile</h2>
+            <div className="text-xs text-gray-500 mt-1">
+              Using {icpMatchingLevel === "basic" ? "Basic" : "Advanced"} ICP Matching
+            </div>
+          </div>
           <div className="text-sm text-gray-400">
             Leads Limit: <span className="text-[#FF6B35] font-semibold">{leadsLimit >= 999999 ? "Unlimited" : leadsLimit}</span>/month
           </div>
@@ -400,6 +410,8 @@ const LeadScraper = () => {
           searchesRemaining={searchesRemaining}
           rateLimitReset={rateLimitReset}
           countdown={countdown}
+          userPlan={userPlan}
+          userEmail={userEmail}
         />
       </div>
 
@@ -525,6 +537,9 @@ const LeadScraper = () => {
                       <ArrowUpDown size={12} />
                     </div>
                   </th>
+                  {userPlan === "pro" && (
+                    <th className="px-4 py-4">Match Score</th>
+                  )}
                   <th className="px-4 py-4 w-12"></th>
                 </tr>
               </thead>
@@ -579,6 +594,30 @@ const LeadScraper = () => {
                     <td className="px-4 py-4 text-gray-400">{lead.location}</td>
                     <td className="px-4 py-4 text-gray-400">{lead.companySize}</td>
                     <td className="px-4 py-4 text-gray-400">{lead.industry}</td>
+                    {userPlan === "pro" && (
+                      <td className="px-4 py-4">
+                        {lead.matchQualityScore !== undefined ? (
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <div className={`px-2 py-1 rounded text-xs font-semibold ${
+                                lead.matchQualityScore >= 80 ? 'bg-green-900/30 text-green-400' :
+                                lead.matchQualityScore >= 60 ? 'bg-yellow-900/30 text-yellow-400' :
+                                'bg-gray-800 text-gray-400'
+                              }`}>
+                                {lead.matchQualityScore}%
+                              </div>
+                            </div>
+                            {lead.matchedCriteria && lead.matchedCriteria.length > 0 && (
+                              <div className="text-[10px] text-gray-500">
+                                {lead.matchedCriteria.join(', ')}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-500 text-xs">-</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-4">
                       <button
                         onClick={() => handleDeleteLead(lead.id)}

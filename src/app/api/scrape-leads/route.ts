@@ -12,6 +12,29 @@ interface ICPCriteria {
   customICP?: string;
   annualRevenue?: string;
   fundingStage?: string;
+  qualityScore?: number;
+}
+
+interface Lead {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  company: string;
+  title: string;
+  location: string;
+  companySize: string;
+  industry: string;
+  linkedInProfile: string;
+  verified: boolean;
+  accuracy: number;
+  founderName: string;
+  founderTitle: string;
+  founderImage: string;
+  fundingStage?: string;
+  annualRevenue?: string;
+  matchQualityScore?: number;
+  matchedCriteria?: string[];
 }
 
 const firstNames = [
@@ -66,8 +89,8 @@ function isValidEmail(email: string): boolean {
 }
 
 // Generate unique leads (no duplicates)
-function generateLeads(criteria: ICPCriteria, count: number, previouslyScrapedEmails: Set<string> = new Set()) {
-  const leads = [];
+function generateLeads(criteria: ICPCriteria, count: number, previouslyScrapedEmails: Set<string> = new Set(), isAdvancedMatching: boolean = false): Lead[] {
+  const leads: Lead[] = [];
   const usedEmailsInThisBatch = new Set<string>();
   const usedNamesInThisBatch = new Set<string>();
   
@@ -79,6 +102,10 @@ function generateLeads(criteria: ICPCriteria, count: number, previouslyScrapedEm
   let industry = criteria.industry || "SaaS";
   let companySize = criteria.companySize || "10-50";
   let location: LocationKey = (criteria.location as LocationKey) || "USA";
+  
+  // Revenue and funding options for advanced matching
+  const revenueOptions = ["Under $1M", "$1M - $10M", "$10M - $100M", "$100M - $1B", "$1B+"];
+  const fundingOptions = ["Bootstrapped", "Pre-seed", "Seed", "Series A", "Series B", "Series C+"];
   
   // If custom ICP is provided, try to extract some info (basic parsing)
   if (criteria.customICP && criteria.customICP.trim()) {
@@ -133,7 +160,89 @@ function generateLeads(criteria: ICPCriteria, count: number, previouslyScrapedEm
       image: "https://i.pravatar.cc/150?u=fallback"
     };
     
-    leads.push({
+    // Advanced matching: add revenue and funding data
+    let fundingStage: string | undefined;
+    let annualRevenue: string | undefined;
+    let matchQualityScore: number | undefined;
+    let matchedCriteria: string[] | undefined;
+    
+    if (isAdvancedMatching) {
+      // Assign funding stage
+      if (criteria.fundingStage) {
+        fundingStage = criteria.fundingStage;
+      } else {
+        fundingStage = getRandomItem(fundingOptions);
+      }
+      
+      // Assign annual revenue
+      if (criteria.annualRevenue) {
+        annualRevenue = criteria.annualRevenue;
+      } else {
+        annualRevenue = getRandomItem(revenueOptions);
+      }
+      
+      // Calculate match quality score (for Pro users)
+      matchedCriteria = [];
+      let score = 0;
+      let maxScore = 0;
+      
+      if (criteria.industry) {
+        maxScore += 20;
+        if (industry === criteria.industry) {
+          score += 20;
+          matchedCriteria.push('industry');
+        }
+      }
+      
+      if (criteria.companySize) {
+        maxScore += 20;
+        if (companySize === criteria.companySize) {
+          score += 20;
+          matchedCriteria.push('company size');
+        }
+      }
+      
+      if (criteria.location) {
+        maxScore += 15;
+        if (location.toLowerCase().includes(criteria.location.toLowerCase())) {
+          score += 15;
+          matchedCriteria.push('location');
+        }
+      }
+      
+      if (criteria.jobTitles && criteria.jobTitles.length > 0) {
+        maxScore += 25;
+        if (criteria.jobTitles.some(t => title.toLowerCase().includes(t.toLowerCase()))) {
+          score += 25;
+          matchedCriteria.push('job title');
+        }
+      }
+      
+      if (criteria.annualRevenue) {
+        maxScore += 10;
+        if (annualRevenue === criteria.annualRevenue) {
+          score += 10;
+          matchedCriteria.push('revenue');
+        }
+      }
+      
+      if (criteria.fundingStage) {
+        maxScore += 10;
+        if (fundingStage === criteria.fundingStage) {
+          score += 10;
+          matchedCriteria.push('funding');
+        }
+      }
+      
+      matchQualityScore = maxScore > 0 ? Math.round((score / maxScore) * 100) : 85 + Math.floor(Math.random() * 15);
+      
+      // Filter by quality score if specified
+      if (criteria.qualityScore && matchQualityScore < criteria.qualityScore) {
+        continue; // Skip this lead if it doesn't meet quality threshold
+      }
+    }
+    
+    const lead: Lead = {
       id: `${Date.now()}-${leads.length}`,
       firstName,
       lastName,
@@ -148,8 +257,18 @@ function generateLeads(criteria: ICPCriteria, count: number, previouslyScrapedEm
       accuracy: Math.floor(Math.random() * 15) + 85, // 85-100% accuracy score
       founderName: founder.name,
       founderTitle: founder.title,
-      founderImage: founder.image
-    });
+      founderImage: founder.image,
+    };
+    
+    // Add advanced fields if available
+    if (isAdvancedMatching) {
+      lead.fundingStage = fundingStage;
+      lead.annualRevenue = annualRevenue;
+      lead.matchQualityScore = matchQualityScore;
+      lead.matchedCriteria = matchedCriteria;
+    }
+    
+    leads.push(lead);
   }
   
   return leads;
@@ -320,9 +439,13 @@ export async function POST(req: Request) {
     // Previously scraped leads to ensure uniqueness
     const previousLeads = new Set<string>(metadata.previousLeads || []);
 
+    // Determine if user has advanced matching (Solo or Pro plan)
+    const userPlan = metadata.plan as string | undefined;
+    const isAdvancedMatching = userPlan === "solo" || userPlan === "pro";
+
     // Generate a larger set of leads (e.g., 100-120) for pagination
     const totalLeadsToGenerate = 120;
-    const allLeads = generateLeads(criteria as ICPCriteria, totalLeadsToGenerate, previousLeads);
+    const allLeads = generateLeads(criteria as ICPCriteria, totalLeadsToGenerate, previousLeads, isAdvancedMatching);
     
     if (allLeads.length === 0) {
       return NextResponse.json({ 

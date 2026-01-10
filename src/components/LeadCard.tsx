@@ -91,6 +91,26 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
             <Briefcase size={14} className="flex-shrink-0" />
             <span className="truncate">{lead.industry}</span>
           </div>
+          
+          {lead.matchQualityScore !== undefined && (
+            <div className="pt-2 border-t border-gray-800">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500 text-xs">Match Quality:</span>
+                <div className={`px-2 py-1 rounded text-xs font-semibold ${
+                  lead.matchQualityScore >= 80 ? 'bg-green-900/30 text-green-400' :
+                  lead.matchQualityScore >= 60 ? 'bg-yellow-900/30 text-yellow-400' :
+                  'bg-gray-800 text-gray-400'
+                }`}>
+                  {lead.matchQualityScore}%
+                </div>
+              </div>
+              {lead.matchedCriteria && lead.matchedCriteria.length > 0 && (
+                <div className="text-[10px] text-gray-500 mt-1">
+                  Matched: {lead.matchedCriteria.join(', ')}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
