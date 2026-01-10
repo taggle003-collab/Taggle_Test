@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { ScrapedLead } from '../../../lib/inbox-types';
-import { QUALITY_COLORS } from '../../../lib/inbox-utils';
+import { ScrapedLead } from '@/lib/inbox-types';
+import { QUALITY_COLORS } from '@/lib/inbox-utils';
 
 interface LeadTableProps {
   leads: ScrapedLead[];

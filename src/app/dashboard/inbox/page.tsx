@@ -1,70 +1,32 @@
-'use client';
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import DashboardLayout from "@/components/DashboardLayout";
+import { InboxContainer } from "@/components/inbox/InboxContainer";
+import { getUserPlan } from "@/lib/user-plan";
 
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { currentUser } from '@clerk/nextjs';
+const ADMIN_EMAIL = "taggle003@gmail.com";
 
-// Components
-import DashboardLayout from '../../../components/DashboardLayout';
-import { InboxContainer } from '../../../components/inbox/InboxContainer';
+export default async function InboxPage({
+  searchParams,
+}: {
+  searchParams: { batch?: string };
+}) {
+  const { userId } = await auth();
 
-// Utils
-import { getUserPlanClient } from '../../../lib/user-plan';
-
-export default function InboxPage() {
-  const [user, setUser] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    async function loadUserData() {
-      try {
-        const current = await currentUser();
-        const userEmail = current?.emailAddresses[0]?.emailAddress;
-        const userData = {
-          plan: getUserPlanClient(),
-          email: userEmail,
-        };
-        setUser(userData);
-      } catch (error) {
-        console.error('Error loading user data:', error);
-        setUser({
-          plan: getUserPlanClient(),
-          email: undefined,
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadUserData();
-  }, []);
-
-  if (isLoading) {
-    return (
-      <DashboardLayout userPlan="lite" userEmail="">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-400">Loading inbox...</div>
-        </div>
-      </DashboardLayout>
-    );
+  if (!userId) {
+    redirect("/sign-in");
   }
 
-  if (!user) {
-    return (
-      <DashboardLayout userPlan="lite" userEmail="">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-400">Please sign in to access your inbox</div>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const user = await currentUser();
+  const userEmail = user?.emailAddresses[0]?.emailAddress;
+  const isAdmin = userEmail === ADMIN_EMAIL;
+  const userPlanData = await getUserPlan(userId);
+  const userPlan = isAdmin ? "pro" : (userPlanData?.plan || "lite");
 
-  // Parse query params - useful for direct batch links
-  const batchId = searchParams.get('batch');
+  const batchId = searchParams.batch;
 
   return (
-    <DashboardLayout userPlan={user.plan} userEmail={user.email}>
+    <DashboardLayout userPlan={userPlan} userEmail={userEmail}>
       <div className="p-6 bg-[#1a1a1a] min-h-screen">
         {/* Header */}
         <div className="mb-8">
@@ -76,9 +38,9 @@ export default function InboxPage() {
 
         {/* Main Inbox Container */}
         <InboxContainer 
-          userPlan={user.plan}
-          userEmail={user.email}
-          batchId={batchId || undefined}
+          userPlan={userPlan}
+          userEmail={userEmail}
+          batchId={batchId}
         />
       </div>
     </DashboardLayout>

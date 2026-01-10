@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FullInsights } from '../../../lib/inbox-types';
-import { LeadBatch } from '../../../lib/inbox-types';
+import { FullInsights, LeadBatch } from '@/lib/inbox-types';
 
 interface AdvancedDashboardProps {
   insights: FullInsights;
