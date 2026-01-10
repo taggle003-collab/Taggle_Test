@@ -106,57 +106,51 @@ const LeadScraper = () => {
     setSelectedLeads(new Set());
     setCurrentPage(1);
     setSearchTerm("");
-    
+
     try {
-      // First, fetch all leads to store them locally
       const response = await fetch("/api/scrape-leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...criteria, page: 1, limit: 1000 }), // Fetch all
+        body: JSON.stringify({ ...criteria, page: 1, limit: 1000 }),
       });
 
+      // Handle rate limit errors separately
+      if (response.status === 429) {
+        const data = await response.json();
+        setRateLimitReset(data.resetTime);
+        setSearchesRemaining(0);
+        setMessage({ type: "error", text: data.message || "Rate limit exceeded. Please wait..." });
+        setIsLoading(false);
+        return;
+      }
+
+      // IMPORTANT: Check if response is not OK BEFORE using data
       if (!response.ok) {
-        const responseClone = response.clone();
-        let errorData: any = {};
-        
+        let errorMessage = "Something went wrong while scraping leads.";
         try {
-          errorData = await response.json();
-        } catch (e) {
-          try {
-            const text = await responseClone.text();
-            errorData = { message: text };
-          } catch (e2) {
-            errorData = {};
-          }
+          const errorData = await response.json();
+          // Use the error message from the API if available
+          errorMessage = errorData.message || errorData.error || errorData.details || errorMessage;
+          console.error("[SCRAPE_LEADS_ERROR]", {
+            status: response.status,
+            statusText: response.statusText,
+            errorData
+          });
+        } catch (parseError) {
+          // If response is not JSON, show status code
+          console.error("[SCRAPE_LEADS_ERROR]", {
+            status: response.status,
+            statusText: response.statusText,
+            body: await response.text()
+          });
         }
-
-        console.error("[SCRAPE_ERROR]", { 
-          status: response.status, 
-          statusText: response.statusText,
-          errorData 
-        });
-
-        let errorMessage = errorData.message || errorData.error || errorData.details || `HTTP ${response.status}`;
-
-        if (response.status === 401 || response.status === 422) {
-          errorMessage = "Authentication error. Please sign in again.";
-        } else if (response.status === 429) {
-          setRateLimitReset(errorData.resetTime);
-          setSearchesRemaining(0);
-          errorMessage = errorData.message || "Rate limit exceeded. Please wait...";
-        } else if (response.status === 400) {
-          errorMessage = errorData.details || errorData.message || errorData.error || "Validation error.";
-        } else if (response.status === 500) {
-          errorMessage = "Server error. Please try again later.";
-        } else {
-          errorMessage = `Failed to scrape leads: ${errorMessage}`;
-        }
-
-        throw new Error(errorMessage);
+        setMessage({ type: "error", text: errorMessage });
+        setIsLoading(false);
+        return;
       }
 
       const data = await response.json();
-      
+
       setSearchesRemaining(data.searchesRemaining);
       if (data.rateLimitReset) setRateLimitReset(data.rateLimitReset);
 
@@ -167,11 +161,9 @@ const LeadScraper = () => {
         setPagination(null);
       } else {
         setAllLeads(data.leads);
-        // Display first page
         const firstPageLeads = data.leads.slice(0, itemsPerPage);
         setDisplayedLeads(firstPageLeads);
-        
-        // Set pagination info
+
         const totalPages = Math.ceil(data.leads.length / itemsPerPage);
         setPagination({
           page: 1,
@@ -181,12 +173,15 @@ const LeadScraper = () => {
           hasNext: totalPages > 1,
           hasPrev: false,
         });
-        
+
         setMessage({ type: "success", text: `Found ${data.leads.length} verified leads!` });
       }
     } catch (error: any) {
-      setMessage({ type: "error", text: error.message || "Something went wrong while scraping leads." });
-      console.error(error);
+      console.error("[SCRAPE_LEADS_EXCEPTION]", error);
+      setMessage({
+        type: "error",
+        text: error.message || "Something went wrong while scraping leads."
+      });
     } finally {
       setIsLoading(false);
     }
