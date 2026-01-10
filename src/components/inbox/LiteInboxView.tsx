@@ -2,7 +2,28 @@
 
 import { useState } from 'react';
 import { LeadBatch, ScrapedLead } from '../../../lib/inbox-types';
-import { deleteLeadBatch } from '../../../lib/inbox-utils';
+
+// Inline functions to avoid import issues
+const deleteLeadBatch = (batchId: string): boolean => {
+  try {
+    const STORAGE_KEY = 'taggle_lead_batches';
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return false;
+    
+    const batches = JSON.parse(stored);
+    const filteredBatches = batches.filter((batch: any) => batch.id !== batchId);
+    
+    if (batches.length === filteredBatches.length) {
+      return false; // Batch not found
+    }
+    
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredBatches));
+    return true;
+  } catch (error) {
+    console.error('Error deleting batch:', error);
+    return false;
+  }
+};
 import { LeadTable } from './LeadTable';
 import { ExportMenu } from './ExportMenu';
 

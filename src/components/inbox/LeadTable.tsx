@@ -2,7 +2,13 @@
 
 import { useState } from 'react';
 import { ScrapedLead } from '../../../lib/inbox-types';
-import { QUALITY_COLORS } from '../../../lib/inbox-utils';
+
+// Inline quality colors to avoid import issues
+const QUALITY_COLORS = {
+  HIGH: '#22c55e', // Green
+  MEDIUM: '#eab308', // Yellow
+  LOW: '#6b7280', // Gray
+};
 
 interface LeadTableProps {
   leads: ScrapedLead[];
