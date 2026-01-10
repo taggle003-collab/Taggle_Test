@@ -115,16 +115,45 @@ const LeadScraper = () => {
         body: JSON.stringify({ ...criteria, page: 1, limit: 1000 }), // Fetch all
       });
 
-      if (response.status === 429) {
-        const data = await response.json();
-        setRateLimitReset(data.resetTime);
-        setSearchesRemaining(0);
-        setMessage({ type: "error", text: data.message });
-        setIsLoading(false);
-        return;
-      }
+      if (!response.ok) {
+        const responseClone = response.clone();
+        let errorData: any = {};
+        
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          try {
+            const text = await responseClone.text();
+            errorData = { message: text };
+          } catch (e2) {
+            errorData = {};
+          }
+        }
 
-      if (!response.ok) throw new Error("Failed to scrape leads");
+        console.error("[SCRAPE_ERROR]", { 
+          status: response.status, 
+          statusText: response.statusText,
+          errorData 
+        });
+
+        let errorMessage = errorData.message || errorData.error || errorData.details || `HTTP ${response.status}`;
+
+        if (response.status === 401 || response.status === 422) {
+          errorMessage = "Authentication error. Please sign in again.";
+        } else if (response.status === 429) {
+          setRateLimitReset(errorData.resetTime);
+          setSearchesRemaining(0);
+          errorMessage = errorData.message || "Rate limit exceeded. Please wait...";
+        } else if (response.status === 400) {
+          errorMessage = errorData.details || errorData.message || errorData.error || "Validation error.";
+        } else if (response.status === 500) {
+          errorMessage = "Server error. Please try again later.";
+        } else {
+          errorMessage = `Failed to scrape leads: ${errorMessage}`;
+        }
+
+        throw new Error(errorMessage);
+      }
 
       const data = await response.json();
       
@@ -155,8 +184,8 @@ const LeadScraper = () => {
         
         setMessage({ type: "success", text: `Found ${data.leads.length} verified leads!` });
       }
-    } catch (error) {
-      setMessage({ type: "error", text: "Something went wrong while scraping leads." });
+    } catch (error: any) {
+      setMessage({ type: "error", text: error.message || "Something went wrong while scraping leads." });
       console.error(error);
     } finally {
       setIsLoading(false);
