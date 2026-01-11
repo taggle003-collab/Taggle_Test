@@ -167,7 +167,7 @@ export function InboxContainer({ userPlan, userEmail, batchId }: InboxContainerP
           ) : selectedBatchId ? (
             <div className="bg-[#2a2a2a] rounded-lg border border-gray-700">
               {/* Render appropriate view based on plan level */}
-              {planLevel === 'basic' && (
+              {planLevel === 'none' && (
                 <LiteInboxView 
                   batch={batches.find(b => b.id === selectedBatchId)!}
                   onDeleteBatch={handleDeleteBatch}

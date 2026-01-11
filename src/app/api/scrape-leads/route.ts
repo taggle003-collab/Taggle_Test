@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
+import { leadScraper } from "@/lib/scrapers/orchestrator";
+import { ScrapedLead } from "@/lib/scrapers/base-scraper";
 
 // Type definitions
 type LocationKey = 'USA' | 'India' | 'UK' | 'Europe' | 'Canada' | 'Australia' | 'Japan' | 'Singapore' | 'Dubai' | 'Asia';
@@ -35,243 +37,35 @@ interface Lead {
   annualRevenue?: string;
   matchQualityScore?: number;
   matchedCriteria?: string[];
+  source: string;
+  sourceUrl?: string;
 }
 
-const firstNames = [
-  "John", "Jane", "Michael", "Sarah", "David", "Emily", "James", "Lisa", "Robert", "Maria",
-  "William", "Jennifer", "Richard", "Patricia", "Joseph", "Linda", "Thomas", "Barbara", "Charles", "Susan",
-  "Christopher", "Jessica", "Daniel", "Karen", "Matthew", "Nancy", "Anthony", "Betty", "Mark", "Helen", "Donald",
-  "Sandra", "Steven", "Donna", "Paul", "Carol", "Andrew", "Ruth", "Joshua", "Sharon", "Kenneth"
-];
-
-const lastNames = [
-  "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez",
-  "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
-  "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
-  "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen", "Hill", "Flores"
-];
-
-const companies = [
-  "TechCorp", "Startuply", "BigSoft", "Healthify", "PayFlow", "DataMax", "CloudNine", "NextGen", "InnovateCo", "FutureTech",
-  "SmartScale", "GrowthLabs", "PeakPerformance", "PrimeDigital", "AlphaSolutions", "BetaWorks", "GammaSystems", "DeltaTech", "OmegaInnovations", "SigmaDigital",
-  "CyberNaut", "Zenith", "Quantum", "Nexus", "Vertex", "Apex", "Omni", "Flux", "Orbit", "Pulse"
-];
-
-// Mock founders for companies
-const companyFounders: Record<string, { name: string; title: string; image: string }> = {};
-
-companies.forEach((company, index) => {
-  const firstName = firstNames[index % firstNames.length];
-  const lastName = lastNames[index % lastNames.length];
-  companyFounders[company] = {
-    name: `${firstName} ${lastName}`,
-    title: index % 3 === 0 ? "Founder & CEO" : "Co-Founder",
-    image: `https://i.pravatar.cc/150?u=${company.toLowerCase()}`
+// Convert ScrapedLead to Lead interface for compatibility
+function convertScrapedLeadToLead(scrapedLead: ScrapedLead): Lead {
+  return {
+    id: scrapedLead.id,
+    firstName: scrapedLead.firstName,
+    lastName: scrapedLead.lastName,
+    email: scrapedLead.email,
+    company: scrapedLead.company,
+    title: scrapedLead.title,
+    location: scrapedLead.location,
+    companySize: scrapedLead.companySize,
+    industry: scrapedLead.industry,
+    linkedInProfile: scrapedLead.linkedInProfile || `https://linkedin.com/in/${scrapedLead.firstName.toLowerCase()}-${scrapedLead.lastName.toLowerCase()}`,
+    verified: scrapedLead.verified || false,
+    accuracy: scrapedLead.accuracy || Math.min((scrapedLead.matchQualityScore || 80) + 5, 95),
+    founderName: scrapedLead.founderName || `${scrapedLead.firstName} ${scrapedLead.lastName}`,
+    founderTitle: scrapedLead.founderTitle || scrapedLead.title,
+    founderImage: scrapedLead.founderImage || `https://i.pravatar.cc/150?u=${scrapedLead.company.toLowerCase()}`,
+    fundingStage: scrapedLead.fundingStage,
+    annualRevenue: scrapedLead.annualRevenue,
+    matchQualityScore: scrapedLead.matchQualityScore,
+    matchedCriteria: scrapedLead.matchedCriteria,
+    source: scrapedLead.source,
+    sourceUrl: scrapedLead.sourceUrl
   };
-});
-
-function getRandomItem<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-// Email validation function
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const invalidPatterns = [
-    'noreply', 'no-reply', 'donotreply', 'test', 'example', 
-    'spam', 'fake', 'dummy', 'admin@', 'info@'
-  ];
-  
-  if (!emailRegex.test(email)) return false;
-  
-  const lowerEmail = email.toLowerCase();
-  return !invalidPatterns.some(pattern => lowerEmail.includes(pattern));
-}
-
-// Generate unique leads (no duplicates)
-function generateLeads(criteria: ICPCriteria, count: number, previouslyScrapedEmails: Set<string> = new Set(), isAdvancedMatching: boolean = false): Lead[] {
-  const leads: Lead[] = [];
-  const usedEmailsInThisBatch = new Set<string>();
-  const usedNamesInThisBatch = new Set<string>();
-  
-  const jobTitlesArray = Array.isArray(criteria.jobTitles) && criteria.jobTitles.length > 0
-    ? criteria.jobTitles
-    : ["CEO", "CTO", "Founder", "VP Sales", "Sales Director", "Marketing Manager"];
-  
-  // Determine values from custom ICP or structured fields
-  let industry = criteria.industry || "SaaS";
-  let companySize = criteria.companySize || "10-50";
-  let location: LocationKey = (criteria.location as LocationKey) || "USA";
-  
-  // Revenue and funding options for advanced matching
-  const revenueOptions = ["Under $1M", "$1M - $10M", "$10M - $100M", "$100M - $1B", "$1B+"];
-  const fundingOptions = ["Bootstrapped", "Pre-seed", "Seed", "Series A", "Series B", "Series C+"];
-  
-  // If custom ICP is provided, try to extract some info (basic parsing)
-  if (criteria.customICP && criteria.customICP.trim()) {
-    const customICP = criteria.customICP.toLowerCase();
-    
-    // Extract industry hints
-    if (customICP.includes('saas') || customICP.includes('software')) industry = "SaaS";
-    else if (customICP.includes('health') || customICP.includes('medical')) industry = "Healthcare";
-    else if (customICP.includes('finance') || customICP.includes('fintech')) industry = "Finance";
-    else if (customICP.includes('retail') || customICP.includes('ecommerce')) industry = "Retail";
-    else if (customICP.includes('tech') || customICP.includes('startup')) industry = "Tech";
-    
-    // Extract size hints
-    if (customICP.includes('early-stage') || customICP.includes('startup')) companySize = "1-10";
-    else if (customICP.includes('mid-size') || customICP.includes('growing')) companySize = "50-100";
-    else if (customICP.includes('enterprise') || customICP.includes('large')) companySize = "500-1000";
-    
-    // Extract location hints
-    if (customICP.includes('usa') || customICP.includes('us') || customICP.includes('america')) location = "USA";
-    else if (customICP.includes('europe') || customICP.includes('eu')) location = "Europe";
-    else if (customICP.includes('india')) location = "India";
-    else if (customICP.includes('asia')) location = "Asia";
-  }
-  
-  let attempts = 0;
-  const maxAttempts = count * 10; // Increased attempts to find unique leads
-  
-  while (leads.length < count && attempts < maxAttempts) {
-    attempts++;
-    
-    const firstName = getRandomItem(firstNames);
-    const lastName = getRandomItem(lastNames);
-    const fullName = `${firstName} ${lastName}`;
-    
-    // Skip if we've used this name combo in this batch
-    if (usedNamesInThisBatch.has(fullName)) continue;
-    
-    const title = getRandomItem(jobTitlesArray);
-    const company = getRandomItem(companies);
-    const domain = company.toLowerCase().replace(/\s+/g, '') + '.com';
-    const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${domain}`;
-    
-    // Skip if we've used this email before OR in this batch OR it's invalid
-    if (previouslyScrapedEmails.has(email) || usedEmailsInThisBatch.has(email) || !isValidEmail(email)) continue;
-    
-    usedEmailsInThisBatch.add(email);
-    usedNamesInThisBatch.add(fullName);
-    
-    const founder = companyFounders[company] || {
-      name: "John Doe",
-      title: "Founder",
-      image: "https://i.pravatar.cc/150?u=fallback"
-    };
-    
-    // Advanced matching: add revenue and funding data
-    let fundingStage: string | undefined;
-    let annualRevenue: string | undefined;
-    let matchQualityScore: number | undefined;
-    let matchedCriteria: string[] | undefined;
-    
-    if (isAdvancedMatching) {
-      // Assign funding stage
-      if (criteria.fundingStage) {
-        fundingStage = criteria.fundingStage;
-      } else {
-        fundingStage = getRandomItem(fundingOptions);
-      }
-      
-      // Assign annual revenue
-      if (criteria.annualRevenue) {
-        annualRevenue = criteria.annualRevenue;
-      } else {
-        annualRevenue = getRandomItem(revenueOptions);
-      }
-      
-      // Calculate match quality score (for Pro users)
-      matchedCriteria = [];
-      let score = 0;
-      let maxScore = 0;
-      
-      if (criteria.industry) {
-        maxScore += 20;
-        if (industry === criteria.industry) {
-          score += 20;
-          matchedCriteria.push('industry');
-        }
-      }
-      
-      if (criteria.companySize) {
-        maxScore += 20;
-        if (companySize === criteria.companySize) {
-          score += 20;
-          matchedCriteria.push('company size');
-        }
-      }
-      
-      if (criteria.location) {
-        maxScore += 15;
-        if (location.toLowerCase().includes(criteria.location.toLowerCase())) {
-          score += 15;
-          matchedCriteria.push('location');
-        }
-      }
-      
-      if (criteria.jobTitles && criteria.jobTitles.length > 0) {
-        maxScore += 25;
-        if (criteria.jobTitles.some(t => title.toLowerCase().includes(t.toLowerCase()))) {
-          score += 25;
-          matchedCriteria.push('job title');
-        }
-      }
-      
-      if (criteria.annualRevenue) {
-        maxScore += 10;
-        if (annualRevenue === criteria.annualRevenue) {
-          score += 10;
-          matchedCriteria.push('revenue');
-        }
-      }
-      
-      if (criteria.fundingStage) {
-        maxScore += 10;
-        if (fundingStage === criteria.fundingStage) {
-          score += 10;
-          matchedCriteria.push('funding');
-        }
-      }
-      
-      matchQualityScore = maxScore > 0 ? Math.round((score / maxScore) * 100) : 85 + Math.floor(Math.random() * 15);
-      
-      // Filter by quality score if specified
-      if (criteria.qualityScore && matchQualityScore < criteria.qualityScore) {
-        continue; // Skip this lead if it doesn't meet quality threshold
-      }
-    }
-    
-    const lead: Lead = {
-      id: `${Date.now()}-${leads.length}`,
-      firstName,
-      lastName,
-      email,
-      company,
-      title,
-      location,
-      companySize,
-      industry,
-      linkedInProfile: `https://linkedin.com/in/${firstName.toLowerCase()}-${lastName.toLowerCase()}`,
-      verified: true,
-      accuracy: Math.floor(Math.random() * 15) + 85, // 85-100% accuracy score
-      founderName: founder.name,
-      founderTitle: founder.title,
-      founderImage: founder.image,
-    };
-    
-    // Add advanced fields if available
-    if (isAdvancedMatching) {
-      lead.fundingStage = fundingStage;
-      lead.annualRevenue = annualRevenue;
-      lead.matchQualityScore = matchQualityScore;
-      lead.matchedCriteria = matchedCriteria;
-    }
-    
-    leads.push(lead);
-  }
-  
-  return leads;
 }
 
 export async function POST(req: Request) {
@@ -459,7 +253,24 @@ export async function POST(req: Request) {
 
     // Generate a larger set of leads (e.g., 100-120) for pagination
     const totalLeadsToGenerate = 120;
-    const allLeads = generateLeads(criteria as ICPCriteria, totalLeadsToGenerate, previousLeads, isAdvancedMatching);
+
+    console.log("[SCRAPE_LEADS] Starting real scraping with orchestrator...");
+    
+    // Use the real scraping orchestrator
+    const scrapingResult = await leadScraper.scrapeLeads(
+      criteria as ICPCriteria,
+      totalLeadsToGenerate,
+      previousLeads,
+      isAdvancedMatching
+    );
+    
+    // Convert scraped leads to legacy Lead format
+    const allLeads = scrapingResult.leads.map(convertScrapedLeadToLead);
+    
+    console.log(`[SCRAPE_LEADS] Real scraping complete. Found ${allLeads.length} leads from ${scrapingResult.sources.length} sources`);
+    if (scrapingResult.errors.length > 0) {
+      console.log("[SCRAPE_LEADS] Scraping errors:", scrapingResult.errors);
+    }
     
     if (allLeads.length === 0) {
       return NextResponse.json({ 

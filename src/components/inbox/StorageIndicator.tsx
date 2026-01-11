@@ -3,7 +3,7 @@
 interface StorageIndicatorProps {
   used: number;
   limit: number;
-  planLevel: 'basic' | 'limited' | 'full';
+  planLevel: 'none' | 'limited' | 'full';
 }
 
 export function StorageIndicator({ used, limit, planLevel }: StorageIndicatorProps) {
