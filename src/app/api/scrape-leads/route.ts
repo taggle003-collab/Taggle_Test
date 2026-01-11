@@ -1,9 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
-import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 
 // Type definitions
-type LocationKey = 'USA' | 'India' | 'UK' | 'Europe' | 'Canada' | 'Australia' | 'Japan' | 'Singapore' | 'Dubai' | 'Asia';
-
 interface ICPCriteria {
   location?: string;
   industry?: string;
@@ -36,6 +35,105 @@ interface Lead {
   matchQualityScore?: number;
   matchedCriteria?: string[];
 }
+
+// Realistic data mappings for proper criteria matching
+const industryData = {
+  "SaaS": {
+    keywords: ["saas", "software", "cloud", "platform", "tech", "startup"],
+    companies: ["TechCorp", "CloudFlow", "DataSync", "NextGen SaaS", "InnovateSoft", "ScaleUp", "CloudNine", "ModernStack", "Quantum SaaS", "Alpha Cloud"],
+    jobTitles: ["CEO", "CTO", "Founder", "VP Sales", "Sales Director", "Marketing Manager", "Product Manager", "Engineering Manager", "VP Marketing", "Growth Lead"],
+    companySizes: ["10-50", "50-100", "100-500"],
+    locations: ["USA", "Europe", "Canada"]
+  },
+  "Healthcare": {
+    keywords: ["health", "medical", "healthcare", "pharma", "biotech", "medtech"],
+    companies: ["HealthCorp", "MedTech Solutions", "BioInnovate", "HealthFlow", "MediSoft", "BioTech Labs", "HealthSync", "MedInnovate", "BioCore", "HealthScale"],
+    jobTitles: ["CEO", "CTO", "Founder", "Medical Director", "VP Operations", "R&D Manager", "Clinical Director", "Regulatory Affairs", "VP Marketing", "Business Development"],
+    companySizes: ["50-100", "100-500", "500-1000"],
+    locations: ["USA", "Europe", "Asia"]
+  },
+  "Finance": {
+    keywords: ["finance", "fintech", "banking", "investment", "trading", "insurance"],
+    companies: ["FinanceCore", "PayFlow", "FinTech Innovations", "CapitalFlow", "InvestTech", "PaySecure", "FinanceCloud", "CapitalTech", "PayTech", "FinanceNext"],
+    jobTitles: ["CEO", "CTO", "Founder", "CFO", "VP Finance", "Risk Manager", "Compliance Officer", "VP Operations", "Product Manager", "VP Sales"],
+    companySizes: ["100-500", "500-1000", "1000+"],
+    locations: ["USA", "UK", "Europe", "Singapore"]
+  },
+  "Retail": {
+    keywords: ["retail", "ecommerce", "e-commerce", "shopping", "consumer", "commerce"],
+    companies: ["RetailFlow", "CommerceTech", "Shopify Plus", "RetailScale", "ConsumerTech", "MarketFlow", "RetailCloud", "ShopTech", "ConsumerFlow", "RetailNext"],
+    jobTitles: ["CEO", "CTO", "Founder", "VP E-commerce", "Marketing Director", "Operations Manager", "Merchandising Manager", "Digital Marketing", "VP Sales", "Customer Experience"],
+    companySizes: ["50-100", "100-500", "500-1000"],
+    locations: ["USA", "Europe", "Asia", "Australia"]
+  },
+  "Education": {
+    keywords: ["education", "edtech", "learning", "school", "university", "training"],
+    companies: ["EduTech", "LearnFlow", "EduInnovate", "StudyTech", "LearnNext", "EduCloud", "SkillTech", "LearnScale", "EduNext", "SkillFlow"],
+    jobTitles: ["CEO", "CTO", "Founder", "Dean", "Academic Director", "VP Education", "Learning Manager", "Curriculum Director", "EdTech Manager", "VP Operations"],
+    companySizes: ["10-50", "50-100", "100-500"],
+    locations: ["USA", "UK", "Europe", "Canada", "Australia"]
+  },
+  "Manufacturing": {
+    keywords: ["manufacturing", "industrial", "production", "factory", "supply", "logistics"],
+    companies: ["ManufactureTech", "IndustrialFlow", "ProductionCore", "ManufactureNext", "IndustrialScale", "ProductionTech", "ManufactureCloud", "IndustrialCore", "ProductionNext", "ManufactureFlow"],
+    jobTitles: ["CEO", "CTO", "Founder", "VP Operations", "Plant Manager", "Supply Chain Director", "Manufacturing Manager", "Quality Director", "Engineering Manager", "VP Sales"],
+    companySizes: ["100-500", "500-1000", "1000+"],
+    locations: ["USA", "Europe", "Asia", "Germany"]
+  }
+};
+
+const locations = {
+  "USA": {
+    keywords: ["usa", "us", "america", "united states", "american", "silicon valley", "new york", "san francisco", "chicago", "seattle"],
+    companies: ["TechCorp", "InnovateCo", "FutureTech", "DataMax", "CloudNine", "NextGen", "GrowthLabs", "PrimeDigital", "AlphaSolutions", "PeakPerformance"],
+    cities: ["San Francisco", "New York", "Seattle", "Austin", "Chicago", "Boston", "Los Angeles", "Denver", "Atlanta", "Miami"]
+  },
+  "Europe": {
+    keywords: ["europe", "eu", "european", "uk", "germany", "france", "netherlands", "sweden"],
+    companies: ["EuroTech", "EuroInnovate", "EuroCore", "EuroNext", "EuroCloud", "EuroScale", "EuroFlow", "EuroData", "EuroSoft", "EuroSolutions"],
+    cities: ["London", "Berlin", "Paris", "Amsterdam", "Stockholm", "Dublin", "Zurich", "Vienna", "Brussels", "Helsinki"]
+  },
+  "UK": {
+    keywords: ["uk", "britain", "british", "england", "london"],
+    companies: ["UK Tech", "British Innovations", "London Tech", "UK Solutions", "British Core", "London Data", "UK Cloud", "British Flow", "London Scale", "UK Next"],
+    cities: ["London", "Manchester", "Birmingham", "Leeds", "Edinburgh", "Glasgow", "Bristol", "Liverpool", "Sheffield", "Cardiff"]
+  },
+  "India": {
+    keywords: ["india", "indian", "bangalore", "mumbai", "delhi", "hyderabad", "pune", "chennai"],
+    companies: ["IndiTech", "India Innovations", "Bangalore Tech", "Mumbai Solutions", "Delhi Cloud", "Hyderabad Data", "Pune Software", "Chennai Tech", "India Next", "Indian Core"],
+    cities: ["Bangalore", "Mumbai", "Delhi", "Hyderabad", "Pune", "Chennai", "Kolkata", "Ahmedabad", "Jaipur", "Surat"]
+  },
+  "Canada": {
+    keywords: ["canada", "canadian", "toronto", "vancouver", "montreal", "calgary"],
+    companies: ["CanTech", "Canadian Innovations", "Toronto Tech", "Vancouver Solutions", "Montreal Core", "Calgary Cloud", "Canada Next", "Canadian Flow", "Toronto Data", "Canada Scale"],
+    cities: ["Toronto", "Vancouver", "Montreal", "Calgary", "Ottawa", "Edmonton", "Winnipeg", "Quebec City", "Hamilton", "Kitchener"]
+  },
+  "Asia": {
+    keywords: ["asia", "asian", "singapore", "tokyo", "seoul", "hong kong", "shanghai", "beijing"],
+    companies: ["AsiaTech", "Asian Innovations", "Singapore Tech", "Tokyo Solutions", "Seoul Core", "Hong Kong Cloud", "Asia Next", "Asian Flow", "Tokyo Data", "Singapore Scale"],
+    cities: ["Singapore", "Tokyo", "Seoul", "Hong Kong", "Shanghai", "Beijing", "Taipei", "Bangkok", "Kuala Lumpur", "Jakarta"]
+  },
+  "Australia": {
+    keywords: ["australia", "australian", "sydney", "melbourne", "perth", "brisbane", "adelaide"],
+    companies: ["AusTech", "Australian Innovations", "Sydney Tech", "Melbourne Solutions", "Perth Core", "Brisbane Cloud", "Australia Next", "Australian Flow", "Sydney Data", "Australia Scale"],
+    cities: ["Sydney", "Melbourne", "Perth", "Brisbane", "Adelaide", "Gold Coast", "Newcastle", "Canberra", "Wollongong", "Hobart"]
+  },
+  "Singapore": {
+    keywords: ["singapore", "sg", "asia pacific", "apac"],
+    companies: ["SG Tech", "Singapore Innovations", "Asia Pacific Solutions", "SG Core", "Singapore Cloud", "Asia Tech", "SG Next", "Singapore Flow", "Asia Solutions", "SG Data"],
+    cities: ["Singapore"]
+  }
+};
+
+// Note: companySizes mapping kept for future use
+// const companySizes = {
+//   "1-10": ["Early-stage", "Startup", "Bootstrap"],
+//   "10-50": ["Growth-stage", "Scale-up", "Mid-size"],
+//   "50-100": ["Expanding", "Mid-size", "Growth"],
+//   "100-500": ["Established", "Mid-to-large", "Corporate"],
+//   "500-1000": ["Large", "Enterprise", "Corporate"],
+//   "1000+": ["Enterprise", "Large corporation", "Multinational"]
+// };
 
 const firstNames = [
   "John", "Jane", "Michael", "Sarah", "David", "Emily", "James", "Lisa", "Robert", "Maria",
@@ -88,63 +186,160 @@ function isValidEmail(email: string): boolean {
   return !invalidPatterns.some(pattern => lowerEmail.includes(pattern));
 }
 
-// Generate unique leads (no duplicates)
+// Enhanced custom ICP parsing with better pattern matching
+function parseCustomICP(icpText: string): Partial<ICPCriteria> {
+  const result: Partial<ICPCriteria> = {};
+  const text = icpText.toLowerCase();
+  
+  // Industry mapping with multiple keywords
+  const industryPatterns = {
+    'saas': ['saas', 'software', 'cloud', 'platform', 'b2b', 'startup', 'tech'],
+    'healthcare': ['health', 'medical', 'healthcare', 'pharma', 'biotech', 'medtech', 'clinical'],
+    'finance': ['finance', 'fintech', 'banking', 'investment', 'trading', 'insurance', 'wealth'],
+    'retail': ['retail', 'ecommerce', 'e-commerce', 'shopping', 'consumer', 'commerce', 'marketplace'],
+    'education': ['education', 'edtech', 'learning', 'school', 'university', 'training', 'course'],
+    'manufacturing': ['manufacturing', 'industrial', 'production', 'factory', 'supply', 'logistics']
+  };
+  
+  // Location patterns
+  const locationPatterns = {
+    'usa': ['usa', 'us', 'america', 'united states', 'american', 'silicon valley', 'new york', 'san francisco', 'chicago', 'seattle', 'boston', 'austin', 'los angeles', 'denver', 'atlanta', 'miami'],
+    'europe': ['europe', 'eu', 'european', 'uk', 'germany', 'france', 'netherlands', 'sweden', 'london', 'berlin', 'paris', 'amsterdam', 'stockholm'],
+    'uk': ['uk', 'britain', 'british', 'england', 'london', 'manchester', 'birmingham'],
+    'india': ['india', 'indian', 'bangalore', 'mumbai', 'delhi', 'hyderabad', 'pune', 'chennai'],
+    'canada': ['canada', 'canadian', 'toronto', 'vancouver', 'montreal', 'calgary'],
+    'asia': ['asia', 'asian', 'singapore', 'tokyo', 'seoul', 'hong kong', 'shanghai', 'beijing', 'taipei'],
+    'australia': ['australia', 'australian', 'sydney', 'melbourne', 'perth', 'brisbane', 'adelaide'],
+    'singapore': ['singapore', 'sg', 'asia pacific', 'apac']
+  };
+  
+  // Company size patterns
+  const sizePatterns = {
+    '1-10': ['early-stage', 'startup', 'bootstrap', 'pre-seed', 'seed', 'founder', '1-10', 'small team'],
+    '10-50': ['growth-stage', 'scale-up', 'mid-size', '10-50', 'startup', 'growing'],
+    '50-100': ['mid-size', 'expanding', '50-100', 'established'],
+    '100-500': ['established', 'mid-to-large', 'corporate', '100-500', 'growth'],
+    '500-1000': ['large', 'enterprise', 'corporate', '500-1000', 'established'],
+    '1000+': ['enterprise', 'large corporation', 'multinational', '1000+', 'mega']
+  };
+  
+  // Job title patterns
+  const titlePatterns = {
+    'ceo': ['ceo', 'chief executive', 'founder', 'president'],
+    'cto': ['cto', 'chief technology', 'tech lead', 'engineering lead'],
+    'cfo': ['cfo', 'chief financial', 'finance lead'],
+    'founder': ['founder', 'co-founder', 'cofounder'],
+    'vp': ['vp', 'vice president', 'svp', 'evp'],
+    'director': ['director', 'head of'],
+    'manager': ['manager', 'lead', 'head'],
+    'sales': ['sales', 'revenue', 'business development'],
+    'marketing': ['marketing', 'growth', 'brand'],
+    'product': ['product', 'pm', 'product manager'],
+    'engineering': ['engineering', 'development', 'tech', 'software'],
+    'operations': ['operations', 'ops', 'operational']
+  };
+  
+  // Parse industry
+  for (const [industry, patterns] of Object.entries(industryPatterns)) {
+    if (patterns.some(pattern => text.includes(pattern))) {
+      result.industry = industry.charAt(0).toUpperCase() + industry.slice(1);
+      break;
+    }
+  }
+  
+  // Parse location
+  for (const [location, patterns] of Object.entries(locationPatterns)) {
+    if (patterns.some(pattern => text.includes(pattern))) {
+      result.location = location.toUpperCase();
+      break;
+    }
+  }
+  
+  // Parse company size
+  for (const [size, patterns] of Object.entries(sizePatterns)) {
+    if (patterns.some(pattern => text.includes(pattern))) {
+      result.companySize = size;
+      break;
+    }
+  }
+  
+  // Parse job titles
+  const jobTitles: string[] = [];
+  for (const [category, patterns] of Object.entries(titlePatterns)) {
+    if (patterns.some(pattern => text.includes(pattern))) {
+      if (category === 'ceo') jobTitles.push('CEO');
+      else if (category === 'cto') jobTitles.push('CTO');
+      else if (category === 'cfo') jobTitles.push('CFO');
+      else if (category === 'founder') jobTitles.push('Founder');
+      else if (category === 'vp') jobTitles.push('VP Sales');
+      else if (category === 'director') jobTitles.push('Director');
+      else if (category === 'manager') jobTitles.push('Manager');
+      else if (category === 'sales') jobTitles.push('Sales Manager');
+      else if (category === 'marketing') jobTitles.push('Marketing Manager');
+      else if (category === 'product') jobTitles.push('Product Manager');
+      else if (category === 'engineering') jobTitles.push('Engineering Manager');
+      else if (category === 'operations') jobTitles.push('Operations Manager');
+    }
+  }
+  
+  if (jobTitles.length > 0) {
+    result.jobTitles = jobTitles;
+  }
+  
+  return result;
+}
+
+// Generate leads that actually match criteria (not filtered after generation)
 function generateLeads(criteria: ICPCriteria, count: number, previouslyScrapedEmails: Set<string> = new Set(), isAdvancedMatching: boolean = false): Lead[] {
   const leads: Lead[] = [];
   const usedEmailsInThisBatch = new Set<string>();
   const usedNamesInThisBatch = new Set<string>();
   
-  const jobTitlesArray = Array.isArray(criteria.jobTitles) && criteria.jobTitles.length > 0
-    ? criteria.jobTitles
-    : ["CEO", "CTO", "Founder", "VP Sales", "Sales Director", "Marketing Manager"];
+  // Parse custom ICP to supplement structured criteria
+  let parsedCriteria = criteria;
+  if (criteria.customICP && criteria.customICP.trim()) {
+    const parsed = parseCustomICP(criteria.customICP);
+    parsedCriteria = { ...criteria, ...parsed };
+  }
   
-  // Determine values from custom ICP or structured fields
-  let industry = criteria.industry || "SaaS";
-  let companySize = criteria.companySize || "10-50";
-  let location: LocationKey = (criteria.location as LocationKey) || "USA";
+  // Use provided criteria or fall back to data-driven defaults
+  const targetIndustry = parsedCriteria.industry || "SaaS";
+  const targetLocation = parsedCriteria.location || "USA";
+  const targetCompanySize = parsedCriteria.companySize || "10-50";
+  const targetJobTitles = parsedCriteria.jobTitles && parsedCriteria.jobTitles.length > 0 
+    ? parsedCriteria.jobTitles 
+    : industryData[targetIndustry as keyof typeof industryData]?.jobTitles || ["CEO", "CTO", "Founder", "VP Sales", "Marketing Manager"];
+  
+  // Get realistic data for the target industry and location
+  const industryInfo = industryData[targetIndustry as keyof typeof industryData] || industryData["SaaS"];
+  const locationInfo = locations[targetLocation as keyof typeof locations] || locations["USA"];
   
   // Revenue and funding options for advanced matching
   const revenueOptions = ["Under $1M", "$1M - $10M", "$10M - $100M", "$100M - $1B", "$1B+"];
   const fundingOptions = ["Bootstrapped", "Pre-seed", "Seed", "Series A", "Series B", "Series C+"];
   
-  // If custom ICP is provided, try to extract some info (basic parsing)
-  if (criteria.customICP && criteria.customICP.trim()) {
-    const customICP = criteria.customICP.toLowerCase();
-    
-    // Extract industry hints
-    if (customICP.includes('saas') || customICP.includes('software')) industry = "SaaS";
-    else if (customICP.includes('health') || customICP.includes('medical')) industry = "Healthcare";
-    else if (customICP.includes('finance') || customICP.includes('fintech')) industry = "Finance";
-    else if (customICP.includes('retail') || customICP.includes('ecommerce')) industry = "Retail";
-    else if (customICP.includes('tech') || customICP.includes('startup')) industry = "Tech";
-    
-    // Extract size hints
-    if (customICP.includes('early-stage') || customICP.includes('startup')) companySize = "1-10";
-    else if (customICP.includes('mid-size') || customICP.includes('growing')) companySize = "50-100";
-    else if (customICP.includes('enterprise') || customICP.includes('large')) companySize = "500-1000";
-    
-    // Extract location hints
-    if (customICP.includes('usa') || customICP.includes('us') || customICP.includes('america')) location = "USA";
-    else if (customICP.includes('europe') || customICP.includes('eu')) location = "Europe";
-    else if (customICP.includes('india')) location = "India";
-    else if (customICP.includes('asia')) location = "Asia";
-  }
-  
   let attempts = 0;
-  const maxAttempts = count * 10; // Increased attempts to find unique leads
+  const maxAttempts = count * 5; // Reduced attempts since we're generating matching leads
   
   while (leads.length < count && attempts < maxAttempts) {
     attempts++;
     
+    // Generate realistic data that matches criteria
     const firstName = getRandomItem(firstNames);
     const lastName = getRandomItem(lastNames);
     const fullName = `${firstName} ${lastName}`;
     
-    // Skip if we've used this name combo in this batch
     if (usedNamesInThisBatch.has(fullName)) continue;
     
-    const title = getRandomItem(jobTitlesArray);
-    const company = getRandomItem(companies);
+    // Use industry-specific job titles with fallback
+    const title = getRandomItem(targetJobTitles);
+    
+    // Use industry-specific companies with location-based fallback
+    const industryCompanies = industryInfo.companies;
+    const locationCompanies = locationInfo.companies;
+    const companyPool = industryCompanies.length > 0 ? industryCompanies : locationCompanies;
+    const company = getRandomItem(companyPool);
+    
     const domain = company.toLowerCase().replace(/\s+/g, '') + '.com';
     const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${domain}`;
     
@@ -155,103 +350,124 @@ function generateLeads(criteria: ICPCriteria, count: number, previouslyScrapedEm
     usedNamesInThisBatch.add(fullName);
     
     const founder = companyFounders[company] || {
-      name: "John Doe",
-      title: "Founder",
-      image: "https://i.pravatar.cc/150?u=fallback"
+      name: getRandomItem(firstNames) + " " + getRandomItem(lastNames),
+      title: "Founder & CEO",
+      image: `https://i.pravatar.cc/150?u=${company.toLowerCase()}`
     };
     
-    // Advanced matching: add revenue and funding data
+    // Advanced matching fields
     let fundingStage: string | undefined;
     let annualRevenue: string | undefined;
     let matchQualityScore: number | undefined;
-    let matchedCriteria: string[] | undefined;
+    const matchedCriteria: string[] = [];
+    
+    // Calculate matched criteria and quality score
+    if (parsedCriteria.industry) {
+      if (targetIndustry === parsedCriteria.industry) {
+        matchedCriteria.push('industry');
+      }
+    }
+    
+    if (parsedCriteria.location) {
+      if (targetLocation.toLowerCase() === parsedCriteria.location.toLowerCase() || 
+          targetLocation.toLowerCase().includes(parsedCriteria.location.toLowerCase())) {
+        matchedCriteria.push('location');
+      }
+    }
+    
+    if (parsedCriteria.companySize) {
+      if (targetCompanySize === parsedCriteria.companySize) {
+        matchedCriteria.push('company size');
+      }
+    }
+    
+    if (parsedCriteria.jobTitles && parsedCriteria.jobTitles.length > 0) {
+      if (parsedCriteria.jobTitles.some(t => title.toLowerCase().includes(t.toLowerCase()))) {
+        matchedCriteria.push('job title');
+      }
+    }
     
     if (isAdvancedMatching) {
       // Assign funding stage
-      if (criteria.fundingStage) {
-        fundingStage = criteria.fundingStage;
+      if (parsedCriteria.fundingStage) {
+        fundingStage = parsedCriteria.fundingStage;
       } else {
         fundingStage = getRandomItem(fundingOptions);
       }
       
       // Assign annual revenue
-      if (criteria.annualRevenue) {
-        annualRevenue = criteria.annualRevenue;
+      if (parsedCriteria.annualRevenue) {
+        annualRevenue = parsedCriteria.annualRevenue;
       } else {
         annualRevenue = getRandomItem(revenueOptions);
       }
       
-      // Calculate match quality score (for Pro users)
-      matchedCriteria = [];
+      // Calculate match quality score
       let score = 0;
       let maxScore = 0;
       
-      if (criteria.industry) {
-        maxScore += 20;
-        if (industry === criteria.industry) {
-          score += 20;
-          matchedCriteria.push('industry');
-        }
-      }
-      
-      if (criteria.companySize) {
-        maxScore += 20;
-        if (companySize === criteria.companySize) {
-          score += 20;
-          matchedCriteria.push('company size');
-        }
-      }
-      
-      if (criteria.location) {
-        maxScore += 15;
-        if (location.toLowerCase().includes(criteria.location.toLowerCase())) {
-          score += 15;
-          matchedCriteria.push('location');
-        }
-      }
-      
-      if (criteria.jobTitles && criteria.jobTitles.length > 0) {
+      if (parsedCriteria.industry) {
         maxScore += 25;
-        if (criteria.jobTitles.some(t => title.toLowerCase().includes(t.toLowerCase()))) {
+        if (targetIndustry === parsedCriteria.industry) score += 25;
+      }
+      
+      if (parsedCriteria.companySize) {
+        maxScore += 20;
+        if (targetCompanySize === parsedCriteria.companySize) score += 20;
+      }
+      
+      if (parsedCriteria.location) {
+        maxScore += 20;
+        if (targetLocation.toLowerCase() === parsedCriteria.location.toLowerCase() || 
+            targetLocation.toLowerCase().includes(parsedCriteria.location.toLowerCase())) {
+          score += 20;
+        }
+      }
+      
+      if (parsedCriteria.jobTitles && parsedCriteria.jobTitles.length > 0) {
+        maxScore += 25;
+        if (parsedCriteria.jobTitles.some(t => title.toLowerCase().includes(t.toLowerCase()))) {
           score += 25;
-          matchedCriteria.push('job title');
         }
       }
       
-      if (criteria.annualRevenue) {
-        maxScore += 10;
-        if (annualRevenue === criteria.annualRevenue) {
-          score += 10;
-          matchedCriteria.push('revenue');
-        }
+      if (parsedCriteria.annualRevenue) {
+        maxScore += 5;
+        if (annualRevenue === parsedCriteria.annualRevenue) score += 5;
       }
       
-      if (criteria.fundingStage) {
-        maxScore += 10;
-        if (fundingStage === criteria.fundingStage) {
-          score += 10;
-          matchedCriteria.push('funding');
-        }
+      if (parsedCriteria.fundingStage) {
+        maxScore += 5;
+        if (fundingStage === parsedCriteria.fundingStage) score += 5;
       }
       
-      matchQualityScore = maxScore > 0 ? Math.round((score / maxScore) * 100) : 85 + Math.floor(Math.random() * 15);
+      matchQualityScore = maxScore > 0 ? Math.round((score / maxScore) * 100) : 85;
       
-      // Filter by quality score if specified
-      if (criteria.qualityScore && matchQualityScore < criteria.qualityScore) {
+      // Add revenue/funding matches to criteria
+      if (parsedCriteria.annualRevenue && annualRevenue === parsedCriteria.annualRevenue) {
+        matchedCriteria.push('revenue');
+      }
+      
+      if (parsedCriteria.fundingStage && fundingStage === parsedCriteria.fundingStage) {
+        matchedCriteria.push('funding');
+      }
+      
+      // Quality score filtering for advanced matching
+      if (parsedCriteria.qualityScore && matchQualityScore < parsedCriteria.qualityScore) {
         continue; // Skip this lead if it doesn't meet quality threshold
       }
     }
     
     const lead: Lead = {
-      id: `${Date.now()}-${leads.length}`,
+      id: `${Date.now()}-${leads.length}-${Math.random().toString(36).substr(2, 9)}`,
       firstName,
       lastName,
       email,
       company,
       title,
-      location,
-      companySize,
-      industry,
+      location: targetLocation,
+      companySize: targetCompanySize,
+      industry: targetIndustry,
       linkedInProfile: `https://linkedin.com/in/${firstName.toLowerCase()}-${lastName.toLowerCase()}`,
       verified: true,
       accuracy: Math.floor(Math.random() * 15) + 85, // 85-100% accuracy score
@@ -265,7 +481,10 @@ function generateLeads(criteria: ICPCriteria, count: number, previouslyScrapedEm
       lead.fundingStage = fundingStage;
       lead.annualRevenue = annualRevenue;
       lead.matchQualityScore = matchQualityScore;
-      lead.matchedCriteria = matchedCriteria;
+      lead.matchedCriteria = matchedCriteria.length > 0 ? matchedCriteria : undefined;
+    } else {
+      // For Lite plan users, still provide matchedCriteria for transparency
+      lead.matchedCriteria = matchedCriteria.length > 0 ? matchedCriteria : ['basic matching'];
     }
     
     leads.push(lead);
@@ -277,7 +496,6 @@ function generateLeads(criteria: ICPCriteria, count: number, previouslyScrapedEm
 export async function POST(req: Request) {
   try {
     console.log("[SCRAPE_LEADS] Starting request...");
-    console.log("[SCRAPE_LEADS] Request headers:", Object.fromEntries(req.headers.entries()));
     
     let userId: string | null = null;
     
@@ -285,23 +503,25 @@ export async function POST(req: Request) {
       const authResult = await auth();
       userId = authResult.userId;
       console.log("[SCRAPE_LEADS] Auth result:", { userId: userId ? "present" : "null" });
-    } catch (authError: any) {
+    } catch (authError: unknown) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const error = authError as any;
       console.error("[SCRAPE_AUTH_ERROR]", {
-        message: authError.message,
-        status: authError.status,
-        code: authError.code,
-        type: authError.type,
-        stack: authError.stack
+        message: error.message,
+        status: error.status,
+        code: error.code,
+        type: error.type,
+        stack: error.stack
       });
       
       return NextResponse.json(
         { 
           error: "Authentication failed", 
           message: "Authentication failed. Please sign in again.",
-          details: authError.message,
+          details: error.message,
           clerkError: true,
-          code: authError.code || "auth_failed",
-          status: authError.status || 422
+          code: error.code || "auth_failed",
+          status: error.status || 422
         },
         { status: 422 }
       );
@@ -317,34 +537,41 @@ export async function POST(req: Request) {
 
     console.log("[SCRAPE_LEADS] Getting Clerk client for user:", userId);
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let client: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let user: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let metadata: any = {};
     
     try {
       client = await clerkClient();
       console.log("[SCRAPE_LEADS] Clerk client created, fetching user...");
       
-      user = await client.users.getUser(userId);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      user = await (client as any).users.getUser(userId);
       console.log("[SCRAPE_LEADS] User fetched successfully");
       
-      metadata = (user.unsafeMetadata as any) || {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      metadata = (user as any).unsafeMetadata || {};
       console.log("[SCRAPE_LEADS] User metadata:", Object.keys(metadata));
-    } catch (userError: any) {
+    } catch (userError: unknown) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const error = userError as any;
       console.error("[SCRAPE_USER_ERROR]", {
-        message: userError.message,
-        status: userError.status,
-        code: userError.code,
-        details: userError.details
+        message: error.message,
+        status: error.status,
+        code: error.code,
+        details: error.details
       });
       
       return NextResponse.json(
         { 
           error: "Failed to fetch user data", 
           message: "Could not retrieve user information. Please try again.",
-          details: userError.message,
+          details: error.message,
           clerkError: true,
-          code: userError.code || "user_fetch_failed"
+          code: error.code || "user_fetch_failed"
         },
         { status: 422 }
       );
@@ -356,7 +583,7 @@ export async function POST(req: Request) {
     const oneHour = 60 * 60 * 1000;
     
     let searchCount = metadata.searchCount || 0;
-    let lastSearchTime = metadata.lastSearchTime ? new Date(metadata.lastSearchTime) : null;
+    const lastSearchTime = metadata.lastSearchTime ? new Date(metadata.lastSearchTime) : null;
     let resetTime = metadata.rateLimitResetTime ? new Date(metadata.rateLimitResetTime) : null;
     
     // Reset if it's been more than an hour since the reset time or first search
@@ -374,7 +601,8 @@ export async function POST(req: Request) {
       // Update reset time if not set
       if (!resetTime) {
         try {
-          await client.users.updateUser(userId, {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (client as any).users.updateUser(userId, {
             unsafeMetadata: {
               ...metadata,
               rateLimitResetTime: actualResetTime.toISOString()
@@ -453,13 +681,56 @@ export async function POST(req: Request) {
     // Previously scraped leads to ensure uniqueness
     const previousLeads = new Set<string>(metadata.previousLeads || []);
 
+    // Parse custom ICP to supplement structured criteria
+    let parsedCriteria = { ...criteria };
+    if (criteria.customICP && criteria.customICP.trim()) {
+      const parsed = parseCustomICP(criteria.customICP);
+      parsedCriteria = { ...criteria, ...parsed };
+    }
+
     // Determine if user has advanced matching (Solo or Pro plan)
     const userPlan = metadata.plan as string | undefined;
     const isAdvancedMatching = userPlan === "solo" || userPlan === "pro";
 
+    console.log("[SCRAPE_LEADS] Parsed criteria:", parsedCriteria);
+    console.log("[SCRAPE_LEADS] User plan:", userPlan);
+    console.log("[SCRAPE_LEADS] Advanced matching:", isAdvancedMatching);
+
     // Generate a larger set of leads (e.g., 100-120) for pagination
     const totalLeadsToGenerate = 120;
+    console.log("[SCRAPE_LEADS] Generating leads with criteria:", {
+      industry: parsedCriteria.industry,
+      location: parsedCriteria.location,
+      companySize: parsedCriteria.companySize,
+      jobTitles: parsedCriteria.jobTitles,
+      customICP: parsedCriteria.customICP,
+      annualRevenue: parsedCriteria.annualRevenue,
+      fundingStage: parsedCriteria.fundingStage,
+      qualityScore: parsedCriteria.qualityScore,
+      isAdvancedMatching
+    });
+    
     const allLeads = generateLeads(criteria as ICPCriteria, totalLeadsToGenerate, previousLeads, isAdvancedMatching);
+    
+    console.log("[SCRAPE_LEADS] Generated leads:", {
+      totalGenerated: allLeads.length,
+      withAdvancedFields: allLeads.filter(l => l.fundingStage || l.annualRevenue || l.matchQualityScore).length,
+      withMatchedCriteria: allLeads.filter(l => l.matchedCriteria && l.matchedCriteria.length > 0).length
+    });
+    
+    // Log some sample criteria matches for verification
+    if (allLeads.length > 0) {
+      const sampleLeads = allLeads.slice(0, 3);
+      console.log("[SCRAPE_LEADS] Sample lead criteria matches:", sampleLeads.map(lead => ({
+        leadId: lead.id,
+        industry: lead.industry,
+        location: lead.location,
+        companySize: lead.companySize,
+        title: lead.title,
+        matchedCriteria: lead.matchedCriteria,
+        matchQualityScore: lead.matchQualityScore
+      })));
+    }
     
     if (allLeads.length === 0) {
       return NextResponse.json({ 
@@ -477,7 +748,7 @@ export async function POST(req: Request) {
     const trimmedPreviousLeads = newPreviousLeads.slice(-500);
 
     try {
-      await client.users.updateUser(userId, {
+      await (client as any).users.updateUser(userId, {
         unsafeMetadata: {
           ...metadata,
           searchCount: newSearchCount,
@@ -500,20 +771,19 @@ export async function POST(req: Request) {
     }
 
     // Calculate pagination
-    const totalPages = Math.ceil(allLeads.length / limitNum);
     const startIndex = (pageNum - 1) * limitNum;
     const endIndex = startIndex + limitNum;
     const paginatedLeads = allLeads.slice(startIndex, endIndex);
 
     return NextResponse.json({ 
-      leads: allLeads, // Return all leads for client-side pagination as per current implementation
+      leads: paginatedLeads, // Return paginated leads
       pagination: {
-        page: 1,
+        page: pageNum,
         limit: limitNum,
         total: allLeads.length,
         pages: Math.ceil(allLeads.length / limitNum),
-        hasNext: allLeads.length > limitNum,
-        hasPrev: false
+        hasNext: endIndex < allLeads.length,
+        hasPrev: pageNum > 1
       },
       quality: "verified_active",
       searchesRemaining: searchLimit - newSearchCount,
