@@ -138,7 +138,7 @@ const LeadScraper = () => {
             statusText: response.statusText,
             errorData
           });
-        } catch (parseError) {
+        } catch {
           // If response is not JSON, show status code
           console.error("[SCRAPE_LEADS_ERROR]", {
             status: response.status,
@@ -181,11 +181,12 @@ const LeadScraper = () => {
           text: `Found ${data.leads.length} real leads from multiple sources!` 
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("[SCRAPE_LEADS_EXCEPTION]", error);
+      const errorMessage = error instanceof Error ? error.message : "Something went wrong while scraping leads.";
       setMessage({
         type: "error",
-        text: error.message || "Something went wrong while scraping leads."
+        text: errorMessage
       });
     } finally {
       setIsLoading(false);
@@ -457,7 +458,7 @@ const LeadScraper = () => {
         <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-12 text-center">
           <Search className="mx-auto mb-4 text-gray-600" size={48} />
           <h3 className="text-xl font-semibold text-white mb-2">No Leads Yet</h3>
-          <p className="text-gray-400">Define your ICP criteria above and click "Scrape Leads" to get started</p>
+          <p className="text-gray-400">Define your ICP criteria above and click &quot;Scrape Leads&quot; to get started</p>
         </div>
       )}
 
@@ -710,7 +711,7 @@ const LeadScraper = () => {
           </div>
           <div>
             <p className="text-blue-200 text-sm font-medium">Real-time Notifications Enabled</p>
-            <p className="text-blue-300/70 text-xs mt-1">You'll receive instant alerts for new leads matching your ICP</p>
+            <p className="text-blue-300/70 text-xs mt-1">You&apos;ll receive instant alerts for new leads matching your ICP</p>
           </div>
         </div>
       )}
