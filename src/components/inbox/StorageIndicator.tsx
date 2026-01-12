@@ -3,7 +3,7 @@
 interface StorageIndicatorProps {
   used: number;
   limit: number;
-  planLevel: 'basic' | 'limited' | 'full';
+  planLevel: 'none' | 'basic' | 'limited' | 'full';
 }
 
 export function StorageIndicator({ used, limit, planLevel }: StorageIndicatorProps) {
@@ -11,7 +11,7 @@ export function StorageIndicator({ used, limit, planLevel }: StorageIndicatorPro
   const isWarning = percentage >= 80;
   const isCritical = percentage >= 95;
   
-  const planName = planLevel === 'full' ? 'Pro' : planLevel === 'limited' ? 'Solo' : 'Lite';
+  const planName = planLevel === 'full' ? 'Pro' : planLevel === 'limited' ? 'Solo' : planLevel === 'basic' ? 'Lite' : 'None';
   
   return (
     <div className="bg-[#2a2a2a] rounded-lg border border-gray-700 p-4">
@@ -22,7 +22,9 @@ export function StorageIndicator({ used, limit, planLevel }: StorageIndicatorPro
             ? 'bg-purple-600 text-white' 
             : planLevel === 'limited'
             ? 'bg-blue-600 text-white'
-            : 'bg-gray-600 text-white'
+            : planLevel === 'basic'
+            ? 'bg-gray-600 text-white'
+            : 'bg-red-600 text-white'
         }`}>
           {planName}
         </span>
@@ -64,7 +66,7 @@ export function StorageIndicator({ used, limit, planLevel }: StorageIndicatorPro
       
       <div className="mt-4 pt-4 border-t border-gray-600">
         <div className="text-xs text-gray-500 space-y-1">
-          <div>• Batches expire in {planLevel === 'full' ? 90 : planLevel === 'limited' ? 60 : 30} days</div>
+          <div>• Batches expire in {planLevel === 'full' ? 90 : planLevel === 'limited' ? 60 : planLevel === 'basic' ? 30 : 0} days</div>
           <div>• Upgrade for more storage</div>
         </div>
       </div>
