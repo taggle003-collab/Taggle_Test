@@ -129,7 +129,16 @@ export async function POST(req: Request) {
       console.log("[SCRAPE_LEADS] User fetched successfully");
       
       metadata = user.unsafeMetadata || {};
-      console.log("[SCRAPE_LEADS] User metadata:", Object.keys(metadata));
+      console.log("[SCRAPE_LEADS] User metadata keys:", Object.keys(metadata));
+      console.log("[SCRAPE_LEADS] User metadata values (safe):", {
+        hasPlan: 'plan' in metadata,
+        hasSearchCount: 'searchCount' in metadata,
+        hasPreviousLeads: 'previousLeads' in metadata,
+        hasRateLimitResetTime: 'rateLimitResetTime' in metadata,
+        hasLeadsUsed: 'leadsUsed' in metadata,
+        hasTotalLeads: 'totalLeads' in metadata,
+        hasTrialStartedAt: 'trialStartedAt' in metadata
+      });
     } catch (userError: unknown) {
       const err = userError as { message?: string; status?: number; code?: string; details?: unknown };
       console.error("[SCRAPE_USER_ERROR]", {
@@ -246,11 +255,28 @@ export async function POST(req: Request) {
       }, { status: 429 });
     }
 
-    const body = await req.json();
+    console.log("[SCRAPE_LEADS] Rate limit check passed, parsing request body...");
+    
+    let body: unknown;
+    try {
+      body = await req.json();
+      console.log("[SCRAPE_LEADS] Request body parsed successfully, type:", typeof body);
+    } catch (parseError: unknown) {
+      const err = parseError as { message?: string };
+      console.error("[SCRAPE_LEADS] Failed to parse request body:", err.message);
+      return NextResponse.json(
+        { 
+          error: "Invalid JSON", 
+          message: "The request body contains invalid JSON.",
+          details: err.message
+        },
+        { status: 400 }
+      );
+    }
     
     // Validate that body is an object and not null
     if (!body || typeof body !== 'object') {
-      console.error("[SCRAPE_LEADS] Invalid request body:", body);
+      console.error("[SCRAPE_LEADS] Invalid request body type:", typeof body, "value:", body);
       return NextResponse.json(
         { 
           error: "Invalid request body", 
@@ -261,35 +287,41 @@ export async function POST(req: Request) {
       );
     }
     
-    const { page = 1, limit = 20, ...criteria } = body;
+    const { page = 1, limit = 20, ...criteria } = body as Record<string, unknown>;
+    
+    console.log("[SCRAPE_LEADS] Extracted parameters:", { page, limit, criteriaKeys: Object.keys(criteria) });
     
     // Validate pagination parameters
     const pageNum = Number(page);
     const limitNum = Number(limit);
     
+    console.log("[SCRAPE_LEADS] Converted to numbers:", { pageNum, limitNum, pageIsNaN: isNaN(pageNum), limitIsNaN: isNaN(limitNum) });
+    
     if (isNaN(pageNum) || pageNum < 1) {
+      console.error("[SCRAPE_LEADS] Invalid page parameter:", { page, pageNum, isNaN: isNaN(pageNum), lessThan1: pageNum < 1 });
       return NextResponse.json(
         { 
           error: "Invalid page parameter", 
           message: "Invalid page number.",
-          details: "Page must be a positive number" 
+          details: `Page must be a positive number. Received: ${page} (type: ${typeof page})` 
         },
         { status: 400 }
       );
     }
     
     if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+      console.error("[SCRAPE_LEADS] Invalid limit parameter:", { limit, limitNum, isNaN: isNaN(limitNum), lessThan1: limitNum < 1, greaterThan100: limitNum > 100 });
       return NextResponse.json(
         { 
           error: "Invalid limit parameter", 
           message: "Invalid limit value.",
-          details: "Limit must be between 1 and 100" 
+          details: `Limit must be between 1 and 100. Received: ${limit} (type: ${typeof limit})` 
         },
         { status: 400 }
       );
     }
     
-    console.log("[SCRAPE_LEADS] Request body parsed:", { 
+    console.log("[SCRAPE_LEADS] Validation passed, processing request:", { 
       page: pageNum, 
       limit: limitNum, 
       criteriaKeys: Object.keys(criteria),
@@ -307,18 +339,53 @@ export async function POST(req: Request) {
     
     console.log("[SCRAPE_LEADS] User plan:", userPlan || "not set", "Advanced matching:", isAdvancedMatching);
 
+    // Ensure clerkClientInstance is not null before proceeding
+    if (!clerkClientInstance) {
+      console.error("[SCRAPE_LEADS] Clerk client instance is null, cannot proceed");
+      return NextResponse.json(
+        { 
+          error: "Internal server error", 
+          message: "Failed to initialize Clerk client.",
+          details: "Clerk client instance is not available"
+        },
+        { status: 500 }
+      );
+    }
+
     // Generate a larger set of leads (e.g., 100-120) for pagination
     const totalLeadsToGenerate = 120;
 
-    console.log("[SCRAPE_LEADS] Starting real scraping with orchestrator...");
+    console.log("[SCRAPE_LEADS] Starting real scraping with orchestrator...", {
+      totalToGenerate: totalLeadsToGenerate,
+      previousLeadsCount: previousLeads.size,
+      isAdvancedMatching
+    });
     
     // Use the real scraping orchestrator
-    const scrapingResult = await leadScraper.scrapeLeads(
-      criteria as ICPCriteria,
-      totalLeadsToGenerate,
-      previousLeads,
-      isAdvancedMatching
-    );
+    let scrapingResult;
+    try {
+      scrapingResult = await leadScraper.scrapeLeads(
+        criteria as ICPCriteria,
+        totalLeadsToGenerate,
+        previousLeads,
+        isAdvancedMatching
+      );
+      console.log("[SCRAPE_LEADS] Scraping orchestrator completed successfully");
+    } catch (scrapeError: unknown) {
+      const err = scrapeError as { message?: string; stack?: string };
+      console.error("[SCRAPE_LEADS] Scraping orchestrator failed:", {
+        message: err.message,
+        stack: err.stack
+      });
+      return NextResponse.json(
+        { 
+          error: "Scraping failed", 
+          message: "Failed to scrape leads. Please try again.",
+          details: err.message
+        },
+        { status: 500 }
+      );
+    }
     
     // Convert scraped leads to legacy Lead format
     const allLeads = scrapingResult.leads.map(convertScrapedLeadToLead);
@@ -329,9 +396,10 @@ export async function POST(req: Request) {
     }
     
     if (allLeads.length === 0) {
+      console.log("[SCRAPE_LEADS] No leads found, returning empty result");
       return NextResponse.json({ 
         leads: [],
-        pagination: { page: 1, limit, total: 0, pages: 0 },
+        pagination: { page: 1, limit: limitNum, total: 0, pages: 0 },
         searchesRemaining: searchLimit - searchCount
       });
     }
@@ -396,7 +464,7 @@ export async function POST(req: Request) {
       userPlan: userPlan || "not set"
     });
 
-    return NextResponse.json({ 
+    const responseData = { 
       leads: allLeads, // Return all leads for client-side pagination as per current implementation
       pagination: {
         page: 1,
@@ -409,7 +477,16 @@ export async function POST(req: Request) {
       quality: "verified_active",
       searchesRemaining: searchLimit - newSearchCount,
       rateLimitReset: newSearchCount >= searchLimit ? new Date(now.getTime() + oneHour).toISOString() : null
+    };
+
+    console.log("[SCRAPE_LEADS] Returning response with:", {
+      leadsCount: responseData.leads.length,
+      paginationTotal: responseData.pagination.total,
+      searchesRemaining: responseData.searchesRemaining,
+      hasRateLimitReset: !!responseData.rateLimitReset
     });
+
+    return NextResponse.json(responseData);
   } catch (error: unknown) {
     const err = error as {
       message?: string;
