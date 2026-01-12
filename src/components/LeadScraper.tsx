@@ -30,6 +30,8 @@ export interface Lead {
   annualRevenue?: string;
   matchQualityScore?: number;
   matchedCriteria?: string[];
+  source?: string;
+  sourceUrl?: string;
 }
 
 interface PaginationInfo {
@@ -174,7 +176,10 @@ const LeadScraper = () => {
           hasPrev: false,
         });
 
-        setMessage({ type: "success", text: `Found ${data.leads.length} verified leads!` });
+        setMessage({ 
+          type: "success", 
+          text: `Found ${data.leads.length} real leads from multiple sources!` 
+        });
       }
     } catch (error: any) {
       console.error("[SCRAPE_LEADS_EXCEPTION]", error);

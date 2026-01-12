@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Copy, Check, Trash2, Building2, MapPin, Users, Briefcase } from "lucide-react";
+import { Copy, Check, Trash2, Building2, MapPin, Users, Briefcase, ExternalLink } from "lucide-react";
 import type { Lead } from "./LeadScraper";
 
 interface LeadCardProps {
@@ -14,6 +14,26 @@ interface LeadCardProps {
 }
 
 const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEmail }: LeadCardProps) => {
+  const getSourceBadge = (source: string) => {
+    const badges: Record<string, { color: string; label: string }> = {
+      reddit: { color: "bg-orange-900/30 text-orange-400 border-orange-900/50", label: "Reddit" },
+      twitter: { color: "bg-blue-900/30 text-blue-400 border-blue-900/50", label: "Twitter" },
+      youtube: { color: "bg-red-900/30 text-red-400 border-red-900/50", label: "YouTube" },
+      google: { color: "bg-green-900/30 text-green-400 border-green-900/50", label: "Google" },
+      instagram: { color: "bg-pink-900/30 text-pink-400 border-pink-900/50", label: "Instagram" },
+      facebook: { color: "bg-indigo-900/30 text-indigo-400 border-indigo-900/50", label: "Facebook" },
+      discord: { color: "bg-purple-900/30 text-purple-400 border-purple-900/50", label: "Discord" }
+    };
+
+    const badge = badges[source] || { color: "bg-gray-800 text-gray-400", label: "Unknown" };
+    
+    return (
+      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border ${badge.color}`}>
+        {badge.label}
+      </span>
+    );
+  };
+
   return (
     <div className="bg-black border border-gray-800 rounded-lg p-4 space-y-4 hover:border-[#FF6B35]/50 transition-all">
       <div className="flex items-center gap-3 border-b border-gray-800 pb-3">
@@ -29,10 +49,11 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
             <span className="text-gray-500">?</span>
           </div>
         )}
-        <div className="flex flex-col min-w-0">
+        <div className="flex flex-col min-w-0 flex-1">
           <span className="text-white font-medium text-sm truncate">{lead.founderName}</span>
           <span className="text-gray-500 text-xs truncate">{lead.founderTitle}</span>
         </div>
+        {lead.source && getSourceBadge(lead.source)}
       </div>
 
       <div className="flex items-start justify-between gap-3">
@@ -104,11 +125,53 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
                   {lead.matchQualityScore}%
                 </div>
               </div>
-              {lead.matchedCriteria && lead.matchedCriteria.length > 0 && (
-                <div className="text-[10px] text-gray-500 mt-1">
-                  Matched: {lead.matchedCriteria.join(', ')}
-                </div>
-              )}
+            </div>
+          )}
+          
+          {lead.matchedCriteria && lead.matchedCriteria.length > 0 && (
+            <div className="pt-2 border-t border-gray-800">
+              <div className="text-[10px] text-gray-500 mb-1">Matched Criteria:</div>
+              <div className="flex flex-wrap gap-1">
+                {lead.matchedCriteria.map((criterion, index) => (
+                  <span key={index} className="px-2 py-1 bg-blue-900/20 text-blue-400 text-[10px] rounded border border-blue-900/30">
+                    {criterion}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {(lead.fundingStage || lead.annualRevenue) && (
+            <div className="pt-2 border-t border-gray-800">
+              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                {lead.fundingStage && (
+                  <div>
+                    <span className="text-gray-500">Funding:</span>
+                    <div className="text-gray-400">{lead.fundingStage}</div>
+                  </div>
+                )}
+                {lead.annualRevenue && (
+                  <div>
+                    <span className="text-gray-500">Revenue:</span>
+                    <div className="text-gray-400">{lead.annualRevenue}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Source URL link */}
+          {lead.sourceUrl && (
+            <div className="pt-2 border-t border-gray-800">
+              <a
+                href={lead.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[#FF6B35] transition-colors"
+              >
+                <ExternalLink size={12} />
+                View source
+              </a>
             </div>
           )}
         </div>

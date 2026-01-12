@@ -24,6 +24,9 @@ export function InboxContainer({ userPlan, userEmail, batchId }: InboxContainerP
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(batchId || null);
 
   const planLevel = getFeatureLevel(userPlan as 'lite' | 'solo' | 'pro' | null | undefined, userEmail, 'leadScraping');
+  
+  // Map userPlan to inbox view level
+  const inboxViewLevel = !userPlan ? 'none' : userPlan === 'lite' ? 'basic' : userPlan === 'solo' ? 'limited' : 'full';
 
   useEffect(() => {
     loadInboxData();
@@ -82,7 +85,7 @@ export function InboxContainer({ userPlan, userEmail, batchId }: InboxContainerP
               <div className="text-sm text-gray-400">Avg Quality</div>
             </div>
             <div className="bg-[#2a2a2a] p-4 rounded-lg border border-gray-700">
-              <div className="text-2xl font-bold text-white">{planLevel === 'full' ? 'Pro' : planLevel === 'limited' ? 'Solo' : 'Lite'}</div>
+              <div className="text-2xl font-bold text-white">{!userPlan ? 'None' : userPlan === 'lite' ? 'Lite' : userPlan === 'solo' ? 'Solo' : 'Pro'}</div>
               <div className="text-sm text-gray-400">Plan Level</div>
             </div>
           </div>
@@ -92,7 +95,7 @@ export function InboxContainer({ userPlan, userEmail, batchId }: InboxContainerP
         <StorageIndicator 
           used={stats?.storageUsed || 0}
           limit={stats?.storageLimit || 100}
-          planLevel={planLevel}
+          planLevel={inboxViewLevel}
         />
       </div>
 
@@ -167,7 +170,22 @@ export function InboxContainer({ userPlan, userEmail, batchId }: InboxContainerP
           ) : selectedBatchId ? (
             <div className="bg-[#2a2a2a] rounded-lg border border-gray-700">
               {/* Render appropriate view based on plan level */}
-              {planLevel === 'basic' && (
+              {inboxViewLevel === 'none' && (
+                <div className="bg-[#2a2a2a] rounded-lg border border-gray-700 p-8 text-center">
+                  <div className="text-gray-400 mb-4">No access to inbox features</div>
+                  <p className="text-gray-500 text-sm mb-6">
+                    Upgrade your plan to access lead inbox functionality.
+                  </p>
+                  <button 
+                    onClick={() => window.location.href = '/dashboard/billing'}
+                    className="bg-[#FF6B35] hover:bg-[#e55a2b] text-white px-6 py-3 rounded-lg transition-colors"
+                  >
+                    Upgrade Plan
+                  </button>
+                </div>
+              )}
+              
+              {inboxViewLevel === 'basic' && (
                 <LiteInboxView 
                   batch={batches.find(b => b.id === selectedBatchId)!}
                   onDeleteBatch={handleDeleteBatch}
@@ -175,7 +193,7 @@ export function InboxContainer({ userPlan, userEmail, batchId }: InboxContainerP
                 />
               )}
               
-              {planLevel === 'limited' && (
+              {inboxViewLevel === 'limited' && (
                 <SoloInboxView 
                   batch={batches.find(b => b.id === selectedBatchId)!}
                   onDeleteBatch={handleDeleteBatch}
@@ -184,7 +202,7 @@ export function InboxContainer({ userPlan, userEmail, batchId }: InboxContainerP
                 />
               )}
               
-              {planLevel === 'full' && (
+              {inboxViewLevel === 'full' && (
                 <ProInboxView 
                   batch={batches.find(b => b.id === selectedBatchId)!}
                   onDeleteBatch={handleDeleteBatch}
