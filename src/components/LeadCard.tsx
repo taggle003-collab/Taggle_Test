@@ -1,8 +1,10 @@
 "use client";
 
 import React from "react";
-import { Copy, Check, Trash2, Building2, MapPin, Users, Briefcase, ExternalLink } from "lucide-react";
+import { Copy, Check, Trash2, Building2, MapPin, Users, Briefcase, ExternalLink, MessageSquare } from "lucide-react";
 import type { Lead } from "./LeadScraper";
+import { hasFeature } from "@/lib/feature-access";
+import { useUser } from "@clerk/nextjs";
 
 interface LeadCardProps {
   lead: Lead;
@@ -10,10 +12,15 @@ interface LeadCardProps {
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   onCopyEmail: (email: string) => void;
+  onCraftMessage: (lead: Lead) => void;
   copiedEmail: string | null;
 }
 
-const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEmail }: LeadCardProps) => {
+const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, onCraftMessage, copiedEmail }: LeadCardProps) => {
+  const { user } = useUser();
+  const userPlan = user?.unsafeMetadata?.plan as "lite" | "solo" | "pro" | undefined;
+  const userEmail = user?.emailAddresses[0]?.emailAddress;
+  const canCraftMessage = hasFeature(userPlan, userEmail, "messageCrafting");
   const getSourceBadge = (source: string) => {
     const badges: Record<string, { color: string; label: string }> = {
       reddit: { color: "bg-orange-900/30 text-orange-400 border-orange-900/50", label: "Reddit" },
@@ -174,6 +181,19 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
               </a>
             </div>
           )}
+
+          {/* Action buttons */}
+          <div className="pt-2 border-t border-gray-800 flex gap-2">
+            {canCraftMessage && (
+              <button
+                onClick={() => onCraftMessage(lead)}
+                className="flex-1 flex items-center justify-center gap-2 bg-gray-800 hover:bg-[#FF6B35]/20 hover:text-[#FF6B35] text-gray-300 px-3 py-2 rounded-lg text-sm transition-colors"
+              >
+                <MessageSquare size={14} />
+                Craft Message
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -28,6 +28,8 @@ export const hasFeature = (
       return planFeatures.realtimeNotifications;
     case "advancedAnalytics":
       return planFeatures.advancedAnalytics !== false;
+    case "messageCrafting":
+      return planFeatures.messageCrafting;
     default:
       return false;
   }

@@ -6,6 +6,7 @@ import ICPForm, { ICPCriteria } from "./ICPForm";
 import LeadCard from "./LeadCard";
 import Pagination from "./Pagination";
 import UpgradePrompt from "./UpgradePrompt";
+import MessageCrafter from "./MessageCrafter";
 import { Mail, Search, CheckCircle2, AlertCircle, Loader2, Copy, Trash2, Check, ArrowUpDown, TrendingUp } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { hasFeature, getLeadsLimit, getFeatureLevel, getICPMatchingLevel } from "@/lib/feature-access";
@@ -76,6 +77,15 @@ const LeadScraper = () => {
   const [searchesRemaining, setSearchesRemaining] = useState<number | null>(null);
   const [rateLimitReset, setRateLimitReset] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<string>("");
+  const [selectedLeadForMessage, setSelectedLeadForMessage] = useState<Lead | null>(null);
+
+  const handleCraftMessage = (lead: Lead) => {
+    setSelectedLeadForMessage(lead);
+  };
+
+  const handleCloseMessageCrafter = () => {
+    setSelectedLeadForMessage(null);
+  };
 
   React.useEffect(() => {
     if (!rateLimitReset) return;
@@ -567,6 +577,7 @@ const LeadScraper = () => {
                       <ArrowUpDown size={12} />
                     </div>
                   </th>
+                  <th className="px-4 py-4">Source</th>
                   {userPlan === "pro" && (
                     <th className="px-4 py-4">Match Score</th>
                   )}
@@ -624,6 +635,24 @@ const LeadScraper = () => {
                     <td className="px-4 py-4 text-gray-400">{lead.location}</td>
                     <td className="px-4 py-4 text-gray-400">{lead.companySize}</td>
                     <td className="px-4 py-4 text-gray-400">{lead.industry}</td>
+                    <td className="px-4 py-4">
+                      {lead.source ? (
+                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border ${
+                          lead.source === "reddit" ? "bg-orange-900/30 text-orange-400 border-orange-900/50" :
+                          lead.source === "twitter" ? "bg-blue-900/30 text-blue-400 border-blue-900/50" :
+                          lead.source === "youtube" ? "bg-red-900/30 text-red-400 border-red-900/50" :
+                          lead.source === "google" ? "bg-green-900/30 text-green-400 border-green-900/50" :
+                          lead.source === "instagram" ? "bg-pink-900/30 text-pink-400 border-pink-900/50" :
+                          lead.source === "facebook" ? "bg-indigo-900/30 text-indigo-400 border-indigo-900/50" :
+                          lead.source === "discord" ? "bg-purple-900/30 text-purple-400 border-purple-900/50" :
+                          "bg-gray-800 text-gray-400 border-gray-700"
+                        }`}>
+                          {lead.source.charAt(0).toUpperCase() + lead.source.slice(1)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-500 text-xs">-</span>
+                      )}
+                    </td>
                     {userPlan === "pro" && (
                       <td className="px-4 py-4">
                         {lead.matchQualityScore !== undefined ? (
@@ -685,6 +714,7 @@ const LeadScraper = () => {
                 onSelect={handleSelectLead}
                 onDelete={handleDeleteLead}
                 onCopyEmail={handleCopyEmail}
+                onCraftMessage={handleCraftMessage}
                 copiedEmail={copiedEmail}
               />
             ))}
@@ -787,6 +817,13 @@ const LeadScraper = () => {
             </p>
           )}
         </div>
+      )}
+
+      {selectedLeadForMessage && (
+        <MessageCrafter
+          lead={selectedLeadForMessage}
+          onClose={handleCloseMessageCrafter}
+        />
       )}
     </div>
   );

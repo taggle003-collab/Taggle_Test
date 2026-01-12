@@ -15,7 +15,8 @@ import {
   Home,
   Contact,
   BarChart3,
-  Zap
+  Zap,
+  MessageSquare
 } from "lucide-react";
 import { SignOutButton } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
@@ -73,6 +74,14 @@ const Sidebar = ({ isAdmin, userPlan, userEmail }: SidebarProps) => {
       name: "Automations",
       icon: Zap,
       href: "/dashboard/automations",
+    });
+  }
+
+  if (hasFeature(userPlan, userEmail, "messageCrafting")) {
+    menuItems.push({
+      name: "Craft Message",
+      icon: MessageSquare,
+      href: "/dashboard/messages",
     });
   }
 
