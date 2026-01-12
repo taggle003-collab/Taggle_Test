@@ -125,11 +125,38 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
                   {lead.matchQualityScore}%
                 </div>
               </div>
-              {lead.matchedCriteria && lead.matchedCriteria.length > 0 && (
-                <div className="text-[10px] text-gray-500 mt-1">
-                  Matched: {lead.matchedCriteria.join(', ')}
-                </div>
-              )}
+            </div>
+          )}
+          
+          {lead.matchedCriteria && lead.matchedCriteria.length > 0 && (
+            <div className="pt-2 border-t border-gray-800">
+              <div className="text-[10px] text-gray-500 mb-1">Matched Criteria:</div>
+              <div className="flex flex-wrap gap-1">
+                {lead.matchedCriteria.map((criterion, index) => (
+                  <span key={index} className="px-2 py-1 bg-blue-900/20 text-blue-400 text-[10px] rounded border border-blue-900/30">
+                    {criterion}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {(lead.fundingStage || lead.annualRevenue) && (
+            <div className="pt-2 border-t border-gray-800">
+              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                {lead.fundingStage && (
+                  <div>
+                    <span className="text-gray-500">Funding:</span>
+                    <div className="text-gray-400">{lead.fundingStage}</div>
+                  </div>
+                )}
+                {lead.annualRevenue && (
+                  <div>
+                    <span className="text-gray-500">Revenue:</span>
+                    <div className="text-gray-400">{lead.annualRevenue}</div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
