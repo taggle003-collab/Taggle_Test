@@ -185,8 +185,8 @@ const LeadScraper = () => {
       console.error("[SCRAPE_LEADS_EXCEPTION]", error);
       setMessage({
         type: "error",
-        text: error.message || "Something went wrong while scraping leads."
-      });
+        text: (error instanceof Error ? error.message : "Something went wrong while scraping leads.")
+        ;
     } finally {
       setIsLoading(false);
     }
