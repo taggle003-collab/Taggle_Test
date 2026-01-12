@@ -1,17 +1,24 @@
 import { clerkClient } from "@clerk/nextjs/server";
-import { DODO_PLANS } from "./dodo-config";
-
-type PlanType = keyof typeof DODO_PLANS;
 
 export interface UserPlanMetadata {
+  // Plan and billing fields
   plan?: "lite" | "solo" | "pro";
   billingCycle?: "monthly" | "yearly";
   productId?: string;
   orderId?: string;
   purchaseDate?: string;
   trialStartedAt?: string;
+  
+  // Lead tracking fields
   leadsUsed?: number;
   totalLeads?: number;
+  
+  // Rate limiting fields
+  searchCount?: number;
+  lastSearchTime?: string;
+  previousLeads?: string[];
+  rateLimitResetTime?: string | null;
+  
   [key: string]: unknown;
 }
 
@@ -50,7 +57,7 @@ export function getUserPlanClient(): "lite" | "solo" | "pro" {
 
   try {
     // Check if there's a user object from Clerk
-    const clerkUser = (window as any).Clerk?.user;
+    const clerkUser = (window as { Clerk?: { user?: { unsafeMetadata?: { plan?: string } } } }).Clerk?.user;
     if (clerkUser?.unsafeMetadata?.plan) {
       return clerkUser.unsafeMetadata.plan as "lite" | "solo" | "pro";
     }

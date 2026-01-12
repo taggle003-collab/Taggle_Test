@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 
 // Type definitions
 type LocationKey = 'USA' | 'India' | 'UK' | 'Europe' | 'Canada' | 'Australia' | 'Japan' | 'Singapore' | 'Dubai' | 'Asia';
@@ -277,7 +277,6 @@ function generateLeads(criteria: ICPCriteria, count: number, previouslyScrapedEm
 export async function POST(req: Request) {
   try {
     console.log("[SCRAPE_LEADS] Starting request...");
-    console.log("[SCRAPE_LEADS] Request headers:", Object.fromEntries(req.headers.entries()));
     
     let userId: string | null = null;
     
@@ -285,23 +284,30 @@ export async function POST(req: Request) {
       const authResult = await auth();
       userId = authResult.userId;
       console.log("[SCRAPE_LEADS] Auth result:", { userId: userId ? "present" : "null" });
-    } catch (authError: any) {
+    } catch (authError: unknown) {
+      const err = authError as {
+        message?: string;
+        status?: number;
+        code?: string;
+        type?: string;
+        stack?: string;
+      };
       console.error("[SCRAPE_AUTH_ERROR]", {
-        message: authError.message,
-        status: authError.status,
-        code: authError.code,
-        type: authError.type,
-        stack: authError.stack
+        message: err.message,
+        status: err.status,
+        code: err.code,
+        type: err.type,
+        stack: err.stack
       });
-      
+
       return NextResponse.json(
-        { 
-          error: "Authentication failed", 
+        {
+          error: "Authentication failed",
           message: "Authentication failed. Please sign in again.",
-          details: authError.message,
+          details: err.message,
           clerkError: true,
-          code: authError.code || "auth_failed",
-          status: authError.status || 422
+          code: err.code || "auth_failed",
+          status: err.status || 422
         },
         { status: 422 }
       );
@@ -316,35 +322,36 @@ export async function POST(req: Request) {
     }
 
     console.log("[SCRAPE_LEADS] Getting Clerk client for user:", userId);
-    
-    let client: any;
-    let user: any;
-    let metadata: any = {};
-    
+
+    let clerkClientInstance: Awaited<ReturnType<typeof clerkClient>> | null = null;
+    let user: { unsafeMetadata: Record<string, unknown> } | null = null;
+    let metadata: Record<string, unknown> = {};
+
     try {
-      client = await clerkClient();
+      clerkClientInstance = await clerkClient();
       console.log("[SCRAPE_LEADS] Clerk client created, fetching user...");
-      
-      user = await client.users.getUser(userId);
+
+      user = await clerkClientInstance.users.getUser(userId);
       console.log("[SCRAPE_LEADS] User fetched successfully");
       
-      metadata = (user.unsafeMetadata as any) || {};
+      metadata = user.unsafeMetadata || {};
       console.log("[SCRAPE_LEADS] User metadata:", Object.keys(metadata));
-    } catch (userError: any) {
+    } catch (userError: unknown) {
+      const err = userError as { message?: string; status?: number; code?: string; details?: unknown };
       console.error("[SCRAPE_USER_ERROR]", {
-        message: userError.message,
-        status: userError.status,
-        code: userError.code,
-        details: userError.details
+        message: err.message,
+        status: err.status,
+        code: err.code,
+        details: err.details
       });
       
       return NextResponse.json(
         { 
           error: "Failed to fetch user data", 
           message: "Could not retrieve user information. Please try again.",
-          details: userError.message,
+          details: err.message,
           clerkError: true,
-          code: userError.code || "user_fetch_failed"
+          code: err.code || "user_fetch_failed"
         },
         { status: 422 }
       );
@@ -355,15 +362,38 @@ export async function POST(req: Request) {
     const searchLimit = 3;
     const oneHour = 60 * 60 * 1000;
     
-    let searchCount = metadata.searchCount || 0;
-    let lastSearchTime = metadata.lastSearchTime ? new Date(metadata.lastSearchTime) : null;
-    let resetTime = metadata.rateLimitResetTime ? new Date(metadata.rateLimitResetTime) : null;
+    // Detect metadata format and initialize missing fields
+    const hasRateLimitingFields = 'searchCount' in metadata || 'previousLeads' in metadata || 'rateLimitResetTime' in metadata;
+    const hasOldPlanFields = 'plan' in metadata || 'leadsUsed' in metadata || 'totalLeads' in metadata || 'trialStartedAt' in metadata;
+    
+    // Log metadata compatibility status
+    console.log("[SCRAPE_LEADS] Metadata compatibility:", {
+      hasRateLimitingFields,
+      hasOldPlanFields,
+      metadataKeys: Object.keys(metadata),
+      userId: userId.substring(0, 8)
+    });
+    
+    // Initialize rate limiting fields if missing (backward compatibility)
+    let searchCount = typeof metadata.searchCount === 'number' ? metadata.searchCount : 0;
+    let lastSearchTime = metadata.lastSearchTime ? new Date(metadata.lastSearchTime as string) : null;
+    let resetTime = metadata.rateLimitResetTime ? new Date(metadata.rateLimitResetTime as string) : null;
+    
+    // Handle migration from old metadata format
+    if (!hasRateLimitingFields && hasOldPlanFields) {
+      console.log("[SCRAPE_LEADS] Migrating from old metadata format to rate limiting format");
+      searchCount = 0;
+      lastSearchTime = null;
+      resetTime = null;
+    }
     
     // Reset if it's been more than an hour since the reset time or first search
     if (resetTime && now > resetTime) {
+      console.log("[SCRAPE_LEADS] Resetting search count - rate limit window expired");
       searchCount = 0;
       resetTime = null;
     } else if (lastSearchTime && (now.getTime() - lastSearchTime.getTime() > oneHour)) {
+      console.log("[SCRAPE_LEADS] Resetting search count - hour elapsed since last search");
       searchCount = 0;
       resetTime = null;
     }
@@ -371,21 +401,43 @@ export async function POST(req: Request) {
     if (searchCount >= searchLimit) {
       const actualResetTime = resetTime || new Date(now.getTime() + oneHour);
       
+      console.log("[SCRAPE_LEADS] Rate limit exceeded:", {
+        searchCount,
+        searchLimit,
+        resetTime: actualResetTime.toISOString()
+      });
+      
       // Update reset time if not set
       if (!resetTime) {
         try {
-          await client.users.updateUser(userId, {
-            unsafeMetadata: {
-              ...metadata,
-              rateLimitResetTime: actualResetTime.toISOString()
-            }
+          const resetMetadata: Record<string, unknown> = {
+            ...metadata,
+            // Preserve all existing fields
+            plan: metadata.plan,
+            billingCycle: metadata.billingCycle,
+            productId: metadata.productId,
+            orderId: metadata.orderId,
+            purchaseDate: metadata.purchaseDate,
+            trialStartedAt: metadata.trialStartedAt,
+            leadsUsed: metadata.leadsUsed,
+            totalLeads: metadata.totalLeads,
+            searchCount: metadata.searchCount,
+            lastSearchTime: metadata.lastSearchTime,
+            previousLeads: metadata.previousLeads,
+            // Add reset time
+            rateLimitResetTime: actualResetTime.toISOString()
+          };
+          
+          await clerkClientInstance.users.updateUser(userId, {
+            unsafeMetadata: resetMetadata
           });
-          console.log("[SCRAPE_LEADS] Updated rate limit reset time");
-        } catch (updateError: any) {
+          console.log("[SCRAPE_LEADS] Updated rate limit reset time - all fields preserved");
+        } catch (updateError: unknown) {
+          const err = updateError as { message?: string; status?: number; code?: string };
           console.error("[SCRAPE_UPDATE_ERROR]", {
-            message: updateError.message,
-            status: updateError.status,
-            code: updateError.code
+            message: err.message,
+            status: err.status,
+            code: err.code
           });
         }
       }
@@ -451,11 +503,15 @@ export async function POST(req: Request) {
     });
 
     // Previously scraped leads to ensure uniqueness
-    const previousLeads = new Set<string>(metadata.previousLeads || []);
+    const previousLeads = new Set<string>(Array.isArray(metadata.previousLeads) ? metadata.previousLeads : []);
+    
+    console.log("[SCRAPE_LEADS] Previous leads count:", previousLeads.size);
 
     // Determine if user has advanced matching (Solo or Pro plan)
     const userPlan = metadata.plan as string | undefined;
     const isAdvancedMatching = userPlan === "solo" || userPlan === "pro";
+    
+    console.log("[SCRAPE_LEADS] User plan:", userPlan || "not set", "Advanced matching:", isAdvancedMatching);
 
     // Generate a larger set of leads (e.g., 100-120) for pagination
     const totalLeadsToGenerate = 120;
@@ -475,35 +531,59 @@ export async function POST(req: Request) {
     
     // Limit previousLeads size to avoid Clerk metadata limits (keeping last 500)
     const trimmedPreviousLeads = newPreviousLeads.slice(-500);
+    
+    // Build updated metadata - preserve all existing fields and add rate limiting fields
+    const updatedMetadata: Record<string, unknown> = {
+      ...metadata,
+      // Preserve old plan fields
+      plan: metadata.plan,
+      billingCycle: metadata.billingCycle,
+      productId: metadata.productId,
+      orderId: metadata.orderId,
+      purchaseDate: metadata.purchaseDate,
+      trialStartedAt: metadata.trialStartedAt,
+      leadsUsed: metadata.leadsUsed,
+      totalLeads: metadata.totalLeads,
+      // Add/update rate limiting fields
+      searchCount: newSearchCount,
+      lastSearchTime: now.toISOString(),
+      previousLeads: trimmedPreviousLeads,
+      rateLimitResetTime: newSearchCount >= searchLimit ? new Date(now.getTime() + oneHour).toISOString() : null
+    };
+    
+    console.log("[SCRAPE_LEADS] Updating metadata:", {
+      searchCount: newSearchCount,
+      previousLeadsCount: trimmedPreviousLeads.length,
+      preservedFields: Object.keys(metadata).length,
+      rateLimited: newSearchCount >= searchLimit
+    });
 
     try {
-      await client.users.updateUser(userId, {
-        unsafeMetadata: {
-          ...metadata,
-          searchCount: newSearchCount,
-          lastSearchTime: now.toISOString(),
-          previousLeads: trimmedPreviousLeads,
-          rateLimitResetTime: newSearchCount >= searchLimit ? new Date(now.getTime() + oneHour).toISOString() : null
-        }
+      await clerkClientInstance.users.updateUser(userId, {
+        unsafeMetadata: updatedMetadata
       });
-      console.log("[SCRAPE_LEADS] Successfully updated user metadata");
-    } catch (updateError: any) {
+      console.log("[SCRAPE_LEADS] Successfully updated user metadata - all fields preserved");
+    } catch (updateError: unknown) {
+      const err = updateError as { message?: string; status?: number; code?: string; details?: unknown };
       console.error("[SCRAPE_UPDATE_METADATA_ERROR]", {
-        message: updateError.message,
-        status: updateError.status,
-        code: updateError.code,
-        details: updateError.details
+        message: err.message,
+        status: err.status,
+        code: err.code,
+        details: err.details,
+        metadataSize: JSON.stringify(updatedMetadata).length
       });
       
       // Don't fail the entire request if metadata update fails
       // The user still gets their leads
+      console.log("[SCRAPE_LEADS] Metadata update failed but returning leads to user");
     }
 
-    // Calculate pagination
-    const totalPages = Math.ceil(allLeads.length / limitNum);
-    const startIndex = (pageNum - 1) * limitNum;
-    const endIndex = startIndex + limitNum;
-    const paginatedLeads = allLeads.slice(startIndex, endIndex);
+    console.log("[SCRAPE_LEADS] Request completed successfully:", {
+      leadsGenerated: allLeads.length,
+      searchesRemaining: searchLimit - newSearchCount,
+      totalPreviousLeads: trimmedPreviousLeads.length,
+      userPlan: userPlan || "not set"
+    });
 
     return NextResponse.json({ 
       leads: allLeads, // Return all leads for client-side pagination as per current implementation
@@ -519,39 +599,50 @@ export async function POST(req: Request) {
       searchesRemaining: searchLimit - newSearchCount,
       rateLimitReset: newSearchCount >= searchLimit ? new Date(now.getTime() + oneHour).toISOString() : null
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as {
+      message?: string;
+      status?: number;
+      code?: string;
+      type?: string;
+      details?: unknown;
+      stack?: string;
+      name?: string;
+      clerkError?: boolean;
+    };
+
     console.error("[SCRAPE_ERROR]", {
-      message: error.message,
-      status: error.status,
-      code: error.code,
-      type: error.type,
-      details: error.details,
-      stack: error.stack,
-      name: error.name
+      message: err.message,
+      status: err.status,
+      code: err.code,
+      type: err.type,
+      details: err.details,
+      stack: err.stack,
+      name: err.name
     });
-    
+
     // Check if it's a Clerk error
-    if (error.clerkError || error.status === 422) {
+    if (err.clerkError || err.status === 422) {
       return NextResponse.json(
-        { 
-          error: "Clerk authentication error", 
+        {
+          error: "Clerk authentication error",
           message: "Authentication with Clerk failed.",
-          details: error.message,
+          details: err.message,
           clerkError: true,
-          code: error.code || "clerk_error",
-          status: error.status || 422
+          code: err.code || "clerk_error",
+          status: err.status || 422
         },
-        { status: error.status || 422 }
+        { status: err.status || 422 }
       );
     }
-    
+
     // Generic error handling
     return NextResponse.json(
-      { 
-        error: "Internal server error", 
+      {
+        error: "Internal server error",
         message: "Something went wrong on our server. Please try again later.",
-        details: error.message,
-        type: error.name || "UnknownError"
+        details: err.message,
+        type: err.name || "UnknownError"
       },
       { status: 500 }
     );
