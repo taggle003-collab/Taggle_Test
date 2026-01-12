@@ -186,7 +186,7 @@ const LeadScraper = () => {
       setMessage({
         type: "error",
         text: (error instanceof Error ? error.message : "Something went wrong while scraping leads.")
-        ,
+      });
     } finally {
       setIsLoading(false);
     }
