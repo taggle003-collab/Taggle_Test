@@ -18,7 +18,17 @@ export interface ScrapedLead {
   annualRevenue?: string;
   matchQualityScore?: number;
   matchedCriteria?: string[];
-  source: "gemini" | "llm" | "reddit" | "twitter" | "youtube" | "google" | "instagram" | "facebook" | "discord";
+  source:
+    | "gemini"
+    | "llm"
+    | "kaggle"
+    | "reddit"
+    | "twitter"
+    | "youtube"
+    | "google"
+    | "instagram"
+    | "facebook"
+    | "discord";
   sourceUrl: string;
 }
 

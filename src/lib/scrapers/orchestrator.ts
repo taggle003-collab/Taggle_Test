@@ -1,6 +1,7 @@
 /// <reference types="node" />
 /// <reference lib="es2020" />
 
+import { KaggleAPIScraper } from './kaggle-api-scraper';
 import { LLMScraper } from './llm-scraper';
 import { RedditScraper } from './reddit-scraper';
 import { GoogleSearchScraper } from './google-scraper';
@@ -14,10 +15,13 @@ export class LeadScrapingOrchestrator {
 
   constructor() {
     this.scrapers = [
-      // Primary lead generator (LLM - DeepSeek-V3)
+      // Primary lead generator (Kaggle datasets via KAGGLE_API_TOKEN)
+      new KaggleAPIScraper(),
+
+      // Optional paid fallback (LLM - OpenRouter)
       new LLMScraper(),
 
-      // Fallback scrapers (mock data until real scrapers are implemented)
+      // Mock fallbacks (until real scrapers are implemented)
       new RedditScraper(),
       new GoogleSearchScraper(),
       new TwitterScraper(),
@@ -75,34 +79,50 @@ export class LeadScrapingOrchestrator {
       }
     };
 
-    // Run LLM scraper first so users get real leads as the primary source.
+    // Run primary scraper first so users get real leads from Kaggle datasets.
     const primaryResult = await runScraper(primaryScraper);
     allResults.leads.push(...primaryResult.leads);
     allResults.errors.push(...primaryResult.errors);
     allResults.sources.push(...primaryResult.sources);
 
-    // If LLM scraper failed or didn't return enough leads, fall back to the mock scrapers.
-    // IMPORTANT: In production, we avoid silently returning mock data when an LLM API key is configured.
-    const primaryUniqueCount = this.removeDuplicates(allResults.leads).length;
+    let uniqueCount = this.removeDuplicates(allResults.leads).length;
 
     const llmConfigured = !!process.env.LLM_API_KEY;
     const allowMockFallback =
       process.env.NODE_ENV !== "production" || process.env.ALLOW_MOCK_FALLBACK === "true";
 
-    const shouldRunFallback = primaryUniqueCount < limit && allowMockFallback;
+    // Try LLM as an optional non-mock fallback when it's configured.
+    const llmScraper = fallbackScrapers.find((scraper) => scraper.source === "llm");
 
-    if (!shouldRunFallback && primaryUniqueCount < limit) {
+    if (uniqueCount < limit && llmConfigured && llmScraper) {
       console.log(
-        `[Orchestrator] Primary returned ${primaryUniqueCount}/${limit} unique leads. Skipping fallback scrapers (llmConfigured=${llmConfigured}, allowMockFallback=${allowMockFallback}).`
+        `[Orchestrator] Primary returned ${uniqueCount}/${limit} unique leads. Running LLM fallback... (llmConfigured=${llmConfigured})`
+      );
+
+      const llmResult = await runScraper(llmScraper);
+      allResults.leads.push(...llmResult.leads);
+      allResults.errors.push(...llmResult.errors);
+      allResults.sources.push(...llmResult.sources);
+
+      uniqueCount = this.removeDuplicates(allResults.leads).length;
+    }
+
+    // If still short, optionally fall back to mock scrapers (disabled by default in production).
+    const mockFallbackScrapers = fallbackScrapers.filter((scraper) => scraper !== llmScraper);
+    const shouldRunMockFallback = uniqueCount < limit && allowMockFallback;
+
+    if (!shouldRunMockFallback && uniqueCount < limit) {
+      console.log(
+        `[Orchestrator] Returning ${uniqueCount}/${limit} unique leads. Skipping mock fallback scrapers (llmConfigured=${llmConfigured}, allowMockFallback=${allowMockFallback}).`
       );
     }
 
-    if (shouldRunFallback && fallbackScrapers.length > 0) {
+    if (shouldRunMockFallback && mockFallbackScrapers.length > 0) {
       console.log(
-        `[Orchestrator] Primary returned ${primaryUniqueCount}/${limit} unique leads. Running ${fallbackScrapers.length} fallback scrapers... (llmConfigured=${llmConfigured}, allowMockFallback=${allowMockFallback})`
+        `[Orchestrator] Returning ${uniqueCount}/${limit} unique leads. Running ${mockFallbackScrapers.length} mock fallback scrapers... (llmConfigured=${llmConfigured}, allowMockFallback=${allowMockFallback})`
       );
 
-      const results = await Promise.allSettled(fallbackScrapers.map((scraper) => runScraper(scraper)));
+      const results = await Promise.allSettled(mockFallbackScrapers.map((scraper) => runScraper(scraper)));
 
       results.forEach((result, index) => {
         if (result.status === "fulfilled") {
@@ -111,7 +131,7 @@ export class LeadScrapingOrchestrator {
           allResults.errors.push(...scraperResult.errors);
           allResults.sources.push(...scraperResult.sources);
         } else {
-          allResults.errors.push(`${fallbackScrapers[index].constructor.name}: ${result.reason}`);
+          allResults.errors.push(`${mockFallbackScrapers[index].constructor.name}: ${result.reason}`);
         }
       });
     }
