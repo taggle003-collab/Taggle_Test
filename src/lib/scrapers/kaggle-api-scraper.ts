@@ -127,27 +127,21 @@ export class KaggleAPIScraper extends BaseScraper {
   }
 
   private async searchKaggleDatasets(criteria: ICPCriteria): Promise<KaggleDataset[]> {
-    const query = this.buildDatasetSearchQuery(criteria);
+    const params = this.buildParams(criteria);
 
     const endpoints = [
-      {
-        url: 'https://www.kaggle.com/api/v1/datasets/search',
-        params: { search: query, sort_by: 'relevance', page: '1', page_size: '20' }
-      },
-      {
-        url: 'https://www.kaggle.com/api/v1/datasets/list',
-        params: { search: query, sortBy: 'relevance', page: '1', pageSize: '20' }
-      }
+      'https://www.kaggle.com/api/v1/datasets/search',
+      'https://www.kaggle.com/api/v1/datasets/list'
     ];
 
-    console.log('[KAGGLE_API] Searching datasets for:', query);
+    console.log('[KAGGLE_API] Searching datasets for:', params.search);
 
-    for (const endpoint of endpoints) {
-      const result = await this.fetchJson(endpoint.url, endpoint.params);
+    for (const url of endpoints) {
+      const result = await this.fetchJson(url, params);
 
       if (!result.ok) {
         console.warn('[KAGGLE_API] Dataset search failed:', {
-          url: endpoint.url,
+          url,
           status: result.status,
           statusText: result.statusText,
           body: result.bodySnippet
@@ -700,13 +694,26 @@ export class KaggleAPIScraper extends BaseScraper {
     return unique;
   }
 
+  private buildParams(criteria: ICPCriteria): Record<string, string | number> {
+    const params: Record<string, string | number> = {};
+    
+    params.search = this.buildDatasetSearchQuery(criteria);
+    params.sort_by = 'relevance';
+    params.page = '1';
+    params.page_size = '20';
+    
+    return params;
+  }
+
   private async fetchJson(
     url: string,
-    params: Record<string, string>
+    params: Record<string, string | number> = {}
   ): Promise<{ ok: boolean; status: number; statusText: string; json: unknown; bodySnippet: string }> {
     const parsedUrl = new URL(url);
     Object.entries(params).forEach(([key, value]) => {
-      if (value) parsedUrl.searchParams.set(key, value);
+      if (value !== undefined && value !== null) {
+        parsedUrl.searchParams.set(key, String(value));
+      }
     });
 
     const response = await fetch(parsedUrl.toString(), {
