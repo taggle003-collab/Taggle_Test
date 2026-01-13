@@ -1,6 +1,7 @@
 /// <reference types="node" />
 /// <reference lib="es2020" />
 
+import { PuppeteerScraper } from './puppeteer-scraper';
 import { LLMScraper } from './llm-scraper';
 import { RedditScraper } from './reddit-scraper';
 import { GoogleSearchScraper } from './google-scraper';
@@ -14,10 +15,11 @@ export class LeadScrapingOrchestrator {
 
   constructor() {
     this.scrapers = [
-      // Primary lead generator (LLM - DeepSeek-V3)
-      new LLMScraper(),
+      // Primary lead generator (Puppeteer - real website scraping)
+      new PuppeteerScraper(),
 
-      // Fallback scrapers (mock data until real scrapers are implemented)
+      // Fallback scrapers
+      new LLMScraper(),
       new RedditScraper(),
       new GoogleSearchScraper(),
       new TwitterScraper(),
@@ -75,31 +77,30 @@ export class LeadScrapingOrchestrator {
       }
     };
 
-    // Run LLM scraper first so users get real leads as the primary source.
+    // Run Puppeteer scraper first so users get real scraped leads as the primary source.
     const primaryResult = await runScraper(primaryScraper);
     allResults.leads.push(...primaryResult.leads);
     allResults.errors.push(...primaryResult.errors);
     allResults.sources.push(...primaryResult.sources);
 
-    // If LLM scraper failed or didn't return enough leads, fall back to the mock scrapers.
-    // IMPORTANT: In production, we avoid silently returning mock data when an LLM API key is configured.
+    // If Puppeteer scraper failed or didn't return enough leads, fall back to LLM and other scrapers.
     const primaryUniqueCount = this.removeDuplicates(allResults.leads).length;
 
-    const llmConfigured = !!process.env.LLM_API_KEY;
-    const allowMockFallback =
-      process.env.NODE_ENV !== "production" || process.env.ALLOW_MOCK_FALLBACK === "true";
+    const puppeteerConfigured = true; // Puppeteer is always available
+    const allowFallback =
+      process.env.NODE_ENV !== "production" || process.env.ALLOW_FALLBACK_SCRAPERS === "true";
 
-    const shouldRunFallback = primaryUniqueCount < limit && allowMockFallback;
+    const shouldRunFallback = primaryUniqueCount < limit && allowFallback;
 
     if (!shouldRunFallback && primaryUniqueCount < limit) {
       console.log(
-        `[Orchestrator] Primary returned ${primaryUniqueCount}/${limit} unique leads. Skipping fallback scrapers (llmConfigured=${llmConfigured}, allowMockFallback=${allowMockFallback}).`
+        `[Orchestrator] Primary returned ${primaryUniqueCount}/${limit} unique leads. Skipping fallback scrapers (puppeteerConfigured=${puppeteerConfigured}, allowFallback=${allowFallback}).`
       );
     }
 
     if (shouldRunFallback && fallbackScrapers.length > 0) {
       console.log(
-        `[Orchestrator] Primary returned ${primaryUniqueCount}/${limit} unique leads. Running ${fallbackScrapers.length} fallback scrapers... (llmConfigured=${llmConfigured}, allowMockFallback=${allowMockFallback})`
+        `[Orchestrator] Primary returned ${primaryUniqueCount}/${limit} unique leads. Running ${fallbackScrapers.length} fallback scrapers... (puppeteerConfigured=${puppeteerConfigured}, allowFallback=${allowFallback})`
       );
 
       const results = await Promise.allSettled(fallbackScrapers.map((scraper) => runScraper(scraper)));
