@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { getLeadsLimit, getFeatureLevel } from "@/lib/feature-access";
+import { getFeatureLevel } from "@/lib/feature-access";
 import AnalyticsCard from "./AnalyticsCard";
 import AnalyticsCharts from "./AnalyticsCharts";
 import LimitedAnalytics from "./LimitedAnalytics";
@@ -36,8 +36,6 @@ const FullAnalytics = ({ userPlan, userEmail }: FullAnalyticsProps) => {
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange>("thisMonth");
   const [customDateRange, setCustomDateRange] = useState({ start: "", end: "" });
 
-  const leadsLimit = getLeadsLimit(userPlan, userEmail);
-
   useEffect(() => {
     const loadAnalyticsData = async () => {
       setIsLoading(true);
@@ -45,7 +43,7 @@ const FullAnalytics = ({ userPlan, userEmail }: FullAnalyticsProps) => {
       // Extended mock data for Pro features
       const mockData: ExtendedAnalyticsData = {
         totalLeadsScrapped: 850,
-        leadsRemaining: leadsLimit - 850,
+        leadsRemaining: 0,
         industryDistribution: [
           { industry: "SaaS", count: 250 },
           { industry: "Healthcare", count: 180 },
@@ -122,7 +120,7 @@ const FullAnalytics = ({ userPlan, userEmail }: FullAnalyticsProps) => {
     };
 
     loadAnalyticsData();
-  }, [leadsLimit]);
+  }, []);
 
   const exportAdvancedCSV = () => {
     if (!analyticsData) return;

@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         ? (billingCycleRaw as "monthly" | "yearly")
         : null;
 
-    let productId = typeof productIdRaw === "string" ? productIdRaw : null;
+    const productId = typeof productIdRaw === "string" ? productIdRaw : null;
 
     if ((!planKey || !billingCycle) && productId) {
       const planInfo = getPlanByProductId(productId);
@@ -100,7 +100,6 @@ export async function POST(request: NextRequest) {
       orderId,
       purchaseDate: new Date().toISOString(),
       leadsUsed: 0,
-      totalLeads: plan.leads,
       dodoEventType: eventType ?? legacyStatus ?? undefined,
     });
 

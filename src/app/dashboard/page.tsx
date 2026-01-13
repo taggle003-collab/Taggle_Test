@@ -1,6 +1,6 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { getUserPlan, updateUserPlan } from "@/lib/user-plan";
-import { hasFeature, getFeatureLevel, getLeadsLimit } from "@/lib/feature-access";
+import { hasFeature, getFeatureLevel } from "@/lib/feature-access";
 import { redirect } from "next/navigation";
 import LiteDashboard from "./components/LiteDashboard";
 import SoloDashboard from "./components/SoloDashboard";
@@ -33,11 +33,7 @@ export default async function DashboardPage({
   const isAdmin = userEmail === "taggle003@gmail.com";
   const plan = isAdmin ? "pro" : (userPlan?.plan || "lite") as "lite" | "solo" | "pro";
 
-  const canScrape = hasFeature(plan, userEmail, "leadScraping");
-  const crmLevel = getFeatureLevel(plan, userEmail, "crmIntegrations");
-  const hasNotifications = hasFeature(plan, userEmail, "realtimeNotifications");
-  const analyticsLevel = getFeatureLevel(plan, userEmail, "advancedAnalytics");
-  const leadsLimit = getLeadsLimit(plan, userEmail);
+  // Lead scraping functionality removed
 
   // Calculate trial remaining days
   let trialDaysLeft = null;

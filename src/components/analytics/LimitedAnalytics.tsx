@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { getLeadsLimit, getFeatureLevel } from "@/lib/feature-access";
+import { getFeatureLevel } from "@/lib/feature-access";
 import AnalyticsCard from "./AnalyticsCard";
 import AnalyticsCharts from "./AnalyticsCharts";
 import { 
@@ -25,8 +25,6 @@ const LimitedAnalytics = ({ userPlan, userEmail }: LimitedAnalyticsProps) => {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const leadsLimit = getLeadsLimit(userPlan, userEmail);
-
   useEffect(() => {
     // Simulate API call with mock data
     const loadAnalyticsData = async () => {
@@ -35,7 +33,7 @@ const LimitedAnalytics = ({ userPlan, userEmail }: LimitedAnalyticsProps) => {
       // Mock analytics data
       const mockData: AnalyticsData = {
         totalLeadsScrapped: 250,
-        leadsRemaining: leadsLimit - 250,
+        leadsRemaining: 0,
         industryDistribution: [
           { industry: "SaaS", count: 85 },
           { industry: "Healthcare", count: 45 },
@@ -79,7 +77,7 @@ const LimitedAnalytics = ({ userPlan, userEmail }: LimitedAnalyticsProps) => {
     };
 
     loadAnalyticsData();
-  }, [leadsLimit]);
+  }, []);
 
   const exportToCSV = () => {
     if (!analyticsData) return;
@@ -147,20 +145,20 @@ const LimitedAnalytics = ({ userPlan, userEmail }: LimitedAnalyticsProps) => {
           <div className="flex justify-between items-center">
             <span className="text-gray-400">Monthly Quota Usage</span>
             <span className="text-2xl font-bold text-[#FF6B35]">
-              {analyticsData.totalLeadsScrapped} / {leadsLimit}
+              {analyticsData.totalLeadsScrapped} / 100
             </span>
           </div>
           <div className="w-full bg-gray-700 rounded-full h-3">
             <div
               className="bg-[#FF6B35] h-3 rounded-full transition-all duration-500"
               style={{
-                width: `${Math.min((analyticsData.totalLeadsScrapped / leadsLimit) * 100, 100)}%`
+                width: `${Math.min((analyticsData.totalLeadsScrapped / 100) * 100, 100)}%`
               }}
             ></div>
           </div>
           <div className="flex justify-between text-sm text-gray-400">
             <span>{analyticsData.leadsRemaining} remaining</span>
-            <span>{Math.round((analyticsData.totalLeadsScrapped / leadsLimit) * 100)}% used</span>
+            <span>{Math.round((analyticsData.totalLeadsScrapped / 100) * 100)}% used</span>
           </div>
         </div>
       </AnalyticsCard>

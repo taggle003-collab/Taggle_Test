@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Search,
   Settings,
   User,
   LogOut,
@@ -43,14 +42,6 @@ const Sidebar = ({ isAdmin, userPlan, userEmail }: SidebarProps) => {
       href: "/dashboard",
     },
   ];
-
-  if (hasFeature(userPlan, userEmail, "leadScraping")) {
-    menuItems.push({
-      name: "Lead Scraper",
-      icon: Search,
-      href: "/dashboard/leads",
-    });
-  }
 
   if (hasFeature(userPlan, userEmail, "crmAccess")) {
     menuItems.push({

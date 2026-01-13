@@ -140,7 +140,7 @@ function PricingContent() {
                   </div>
 
                   {/* Lead Count */}
-                  <p className="text-gray-400 mb-6">{plan.leads} verified leads/month</p>
+                  <p className="text-gray-400 mb-6">Full access</p>
 
                   {/* CTA Button */}
                   <button
