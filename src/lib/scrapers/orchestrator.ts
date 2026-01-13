@@ -1,3 +1,6 @@
+/// <reference types="node" />
+/// <reference lib="es2020" />
+
 import { LLMScraper } from './llm-scraper';
 import { RedditScraper } from './reddit-scraper';
 import { GoogleSearchScraper } from './google-scraper';
@@ -79,12 +82,24 @@ export class LeadScrapingOrchestrator {
     allResults.sources.push(...primaryResult.sources);
 
     // If LLM scraper failed or didn't return enough leads, fall back to the mock scrapers.
+    // IMPORTANT: In production, we avoid silently returning mock data when an LLM API key is configured.
     const primaryUniqueCount = this.removeDuplicates(allResults.leads).length;
-    const shouldRunFallback = primaryUniqueCount < limit;
+
+    const llmConfigured = !!process.env.LLM_API_KEY;
+    const allowMockFallback =
+      process.env.NODE_ENV !== "production" || process.env.ALLOW_MOCK_FALLBACK === "true";
+
+    const shouldRunFallback = primaryUniqueCount < limit && allowMockFallback;
+
+    if (!shouldRunFallback && primaryUniqueCount < limit) {
+      console.log(
+        `[Orchestrator] Primary returned ${primaryUniqueCount}/${limit} unique leads. Skipping fallback scrapers (llmConfigured=${llmConfigured}, allowMockFallback=${allowMockFallback}).`
+      );
+    }
 
     if (shouldRunFallback && fallbackScrapers.length > 0) {
       console.log(
-        `[Orchestrator] Primary returned ${primaryUniqueCount}/${limit} unique leads. Running ${fallbackScrapers.length} fallback scrapers...`
+        `[Orchestrator] Primary returned ${primaryUniqueCount}/${limit} unique leads. Running ${fallbackScrapers.length} fallback scrapers... (llmConfigured=${llmConfigured}, allowMockFallback=${allowMockFallback})`
       );
 
       const results = await Promise.allSettled(fallbackScrapers.map((scraper) => runScraper(scraper)));
