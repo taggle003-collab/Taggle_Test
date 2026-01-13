@@ -1,4 +1,4 @@
-import { GeminiScraper } from './gemini-scraper';
+import { LLMScraper } from './llm-scraper';
 import { RedditScraper } from './reddit-scraper';
 import { GoogleSearchScraper } from './google-scraper';
 import { TwitterScraper } from './twitter-scraper';
@@ -11,8 +11,8 @@ export class LeadScrapingOrchestrator {
 
   constructor() {
     this.scrapers = [
-      // Primary lead generator (Gemini)
-      new GeminiScraper(),
+      // Primary lead generator (LLM - DeepSeek-V3)
+      new LLMScraper(),
 
       // Fallback scrapers (mock data until real scrapers are implemented)
       new RedditScraper(),
@@ -72,13 +72,13 @@ export class LeadScrapingOrchestrator {
       }
     };
 
-    // Run Gemini first so users get real leads as the primary source.
+    // Run LLM scraper first so users get real leads as the primary source.
     const primaryResult = await runScraper(primaryScraper);
     allResults.leads.push(...primaryResult.leads);
     allResults.errors.push(...primaryResult.errors);
     allResults.sources.push(...primaryResult.sources);
 
-    // If Gemini failed or didn't return enough leads, fall back to the mock scrapers.
+    // If LLM scraper failed or didn't return enough leads, fall back to the mock scrapers.
     const primaryUniqueCount = this.removeDuplicates(allResults.leads).length;
     const shouldRunFallback = primaryUniqueCount < limit;
 
