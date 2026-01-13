@@ -1,8 +1,7 @@
 /// <reference types="node" />
 /// <reference lib="es2020" />
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-import JSZip = require('jszip');
+import * as JSZip from 'jszip';
 import { BaseScraper, type ICPCriteria, type ScrapedLead, type ScrapingResult } from './base-scraper';
 
 type KaggleDataset = {
