@@ -1,3 +1,6 @@
+/// <reference types="node" />
+/// <reference lib="es2020" />
+
 import { BaseScraper, type ICPCriteria, type ScrapedLead } from "./base-scraper";
 
 type LLMLead = {
@@ -36,15 +39,27 @@ export class LLMScraper extends BaseScraper {
     super("https://openrouter.ai", "llm");
     this.modelName = modelName || process.env.LLM_MODEL_NAME || "deepseek/deepseek-chat";
     this.batchSize = Math.max(1, Math.min(batchSize, 30));
-    
-    this.apiBaseUrl = process.env.LLM_API_BASE_URL || "https://openrouter.ai/api/v1";
+
+    const rawBaseUrl = process.env.LLM_API_BASE_URL || "https://openrouter.ai/api/v1";
+    this.apiBaseUrl = rawBaseUrl.replace(/\/+$/, "");
+
     this.apiKey = process.env.LLM_API_KEY || "";
 
+    const keyDebug = this.apiKey
+      ? `${this.apiKey.slice(0, 6)}…${this.apiKey.slice(-4)} (len=${this.apiKey.length})`
+      : "missing";
+
+    console.log("[LLMScraper] Env config:", {
+      hasApiKey: !!this.apiKey,
+      apiKeyDebug: keyDebug,
+      apiBaseUrl: this.apiBaseUrl,
+      modelName: this.modelName,
+      nodeEnv: process.env.NODE_ENV
+    });
+
     if (!this.apiKey) {
-      console.warn("[LLMScraper] Warning: LLM_API_KEY not configured");
+      console.warn("[LLMScraper] Warning: LLM_API_KEY not configured (OpenRouter keys usually start with 'sk-or-')");
     }
-    
-    console.log(`[LLMScraper] Initialized with model: ${this.modelName}, API base: ${this.apiBaseUrl}`);
   }
 
   async scrape(criteria: ICPCriteria): Promise<import('./base-scraper').ScrapingResult> {
@@ -148,6 +163,9 @@ export class LLMScraper extends BaseScraper {
   }
 
   async scrapePage(query: string): Promise<Partial<ScrapedLead>[]> {
+    const allowMockFallback =
+      process.env.NODE_ENV !== "production" || process.env.ALLOW_MOCK_FALLBACK === "true";
+
     if (!this.apiKey) {
       throw new Error(
         "LLM API key not configured. Set LLM_API_KEY in your environment."
@@ -155,6 +173,13 @@ export class LLMScraper extends BaseScraper {
     }
 
     const payload = this.decodeQueryPayload(query);
+
+    const endpoint = `${this.apiBaseUrl}/chat/completions`;
+
+    console.log("[LLM_SCRAPER] API Key present:", !!this.apiKey);
+    console.log("[LLM_SCRAPER] API Base URL:", this.apiBaseUrl);
+    console.log("[LLM_SCRAPER] Model Name:", this.modelName);
+    console.log("[LLM_SCRAPER] Calling API endpoint:", endpoint);
 
     console.log(
       `[LLMScraper] Generating ${payload.count} leads (batch ${payload.batchIndex}/${payload.batches}) for criteria:`,
@@ -165,7 +190,8 @@ export class LLMScraper extends BaseScraper {
         jobTitles: payload.criteria.jobTitles,
         hasCustomICP: !!payload.criteria.customICP,
         isAdvancedMatching: !!payload.criteria.isAdvancedMatching,
-        model: this.modelName
+        model: this.modelName,
+        allowMockFallback
       }
     );
 
@@ -173,14 +199,19 @@ export class LLMScraper extends BaseScraper {
     console.log(`[LLMScraper] Using prompt (${prompt.length} chars)`);
 
     const startedAt = Date.now();
-    
+
     try {
+      const maxTokens = Math.min(4096, Math.max(1200, payload.count * 180));
+
+      const systemMessage =
+        "You are a B2B lead generation expert. You generate realistic but fictional lead data in strict JSON format. Always return valid JSON arrays or objects without any markdown formatting or explanations.";
+
       const requestBody: Record<string, unknown> = {
         model: this.modelName,
         messages: [
           {
             role: "system",
-            content: "You are a B2B lead generation expert. You generate realistic but fictional lead data in strict JSON format. Always return valid JSON arrays or objects without any markdown formatting or explanations."
+            content: systemMessage
           },
           {
             role: "user",
@@ -188,28 +219,42 @@ export class LLMScraper extends BaseScraper {
           }
         ],
         temperature: 0.7,
-        max_tokens: 8000
+        max_tokens: maxTokens
       };
 
       // Only add response_format for models that support it (OpenAI-compatible models)
       // DeepSeek and some other models may not support this parameter
-      if (this.modelName.includes('gpt') || this.modelName.includes('openai')) {
+      if (this.modelName.includes("gpt") || this.modelName.includes("openai")) {
         requestBody.response_format = { type: "json_object" };
       }
 
-      const response = await fetch(`${this.apiBaseUrl}/chat/completions`, {
+      console.log("[LLM_SCRAPER] Request payload (sanitized):", {
+        model: requestBody.model,
+        temperature: requestBody.temperature,
+        max_tokens: requestBody.max_tokens,
+        hasResponseFormat: "response_format" in requestBody,
+        messages: [
+          { role: "system", contentLength: systemMessage.length },
+          { role: "user", contentLength: prompt.length }
+        ]
+      });
+
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.apiKey}`,
           "HTTP-Referer": "https://leadscraperapp.com",
           "X-Title": "Lead Scraper App"
         },
         body: JSON.stringify(requestBody)
       });
 
+      console.log("[LLM_SCRAPER] API Response:", response.status, response.statusText);
+
       if (!response.ok) {
         const errorText = await response.text();
+        console.log("[LLM_SCRAPER] API Error Body (truncated):", errorText.slice(0, 2000));
         throw new Error(`LLM API error (${response.status}): ${errorText}`);
       }
 
@@ -228,44 +273,48 @@ export class LLMScraper extends BaseScraper {
             if (normalizedLead) {
               console.log(`[LLMScraper] Lead ${index + 1}/${parsedLeads.length} normalized successfully`);
               return normalizedLead;
-            } else {
-              console.log(`[LLMScraper] Lead ${index + 1}/${parsedLeads.length} failed normalization`);
-              return null;
             }
+
+            console.log(`[LLMScraper] Lead ${index + 1}/${parsedLeads.length} failed normalization`);
+            return null;
           } catch (error) {
-            console.error(`[LLMScraper] Lead ${index + 1}/${parsedLeads.length} normalization error:`, error);
+            console.error(
+              `[LLMScraper] Lead ${index + 1}/${parsedLeads.length} normalization error:`,
+              error
+            );
             return null;
           }
         })
         .filter((lead): lead is Partial<ScrapedLead> => !!lead);
 
-      console.log(`[LLMScraper] Final normalized leads count: ${normalized.length} from batch ${payload.batchIndex}/${payload.batches}`);
+      console.log(
+        `[LLMScraper] Final normalized leads count: ${normalized.length} from batch ${payload.batchIndex}/${payload.batches}`
+      );
 
       if (normalized.length === 0) {
-        console.warn(`[LLMScraper] WARNING: No valid leads generated in batch ${payload.batchIndex}/${payload.batches}`);
-        const fallbackLeads = this.generateFallbackLeads(payload.criteria, Math.min(payload.count, 5));
-        if (fallbackLeads.length > 0) {
-          console.log(`[LLMScraper] Generated ${fallbackLeads.length} fallback leads`);
+        const msg = `No valid leads generated in batch ${payload.batchIndex}/${payload.batches}`;
+        console.warn(`[LLMScraper] WARNING: ${msg}`);
+
+        if (allowMockFallback) {
+          const fallbackLeads = this.generateFallbackLeads(payload.criteria, Math.min(payload.count, 5));
+          console.log(`[LLMScraper] Generated ${fallbackLeads.length} fallback leads (ALLOW_MOCK_FALLBACK enabled)`);
           return fallbackLeads;
         }
+
+        throw new Error(msg);
       }
 
       return normalized;
     } catch (error) {
       console.error(`[LLMScraper] Error in batch ${payload.batchIndex}/${payload.batches}:`, error);
-      
-      try {
+
+      if (allowMockFallback) {
         const fallbackLeads = this.generateFallbackLeads(payload.criteria, Math.min(payload.count, 5));
-        if (fallbackLeads.length > 0) {
-          console.log(`[LLMScraper] Generated ${fallbackLeads.length} fallback leads after error`);
-          return fallbackLeads;
-        }
-      } catch (fallbackError) {
-        console.error(`[LLMScraper] Fallback generation also failed:`, fallbackError);
+        console.log(`[LLMScraper] Generated ${fallbackLeads.length} fallback leads after error (ALLOW_MOCK_FALLBACK enabled)`);
+        return fallbackLeads;
       }
-      
-      console.error(`[LLMScraper] Complete failure in batch ${payload.batchIndex}/${payload.batches}, returning empty array`);
-      return [];
+
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
