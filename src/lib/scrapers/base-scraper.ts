@@ -18,7 +18,7 @@ export interface ScrapedLead {
   annualRevenue?: string;
   matchQualityScore?: number;
   matchedCriteria?: string[];
-  source: "reddit" | "twitter" | "youtube" | "google" | "instagram" | "facebook" | "discord";
+  source: "gemini" | "reddit" | "twitter" | "youtube" | "google" | "instagram" | "facebook" | "discord";
   sourceUrl: string;
 }
 
@@ -31,6 +31,10 @@ export interface ICPCriteria {
   annualRevenue?: string;
   fundingStage?: string;
   qualityScore?: number;
+
+  // Internal orchestrator options (not user-provided)
+  desiredLeads?: number;
+  isAdvancedMatching?: boolean;
 }
 
 export interface ScrapingResult {
