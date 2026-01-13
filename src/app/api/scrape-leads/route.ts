@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { leadScraper } from "@/lib/scrapers/orchestrator";
 import { ScrapedLead } from "@/lib/scrapers/base-scraper";
+import { generateLeadsWithGemini } from "@/lib/gemini-scraper";
 
 // Type definitions
 type LocationKey = 'USA' | 'India' | 'UK' | 'Europe' | 'Canada' | 'Australia' | 'Japan' | 'Singapore' | 'Dubai' | 'Asia';
@@ -352,51 +353,41 @@ export async function POST(req: Request) {
       );
     }
 
-    // Generate a larger set of leads (e.g., 100-120) for pagination
-    const totalLeadsToGenerate = 120;
-
-    console.log("[SCRAPE_LEADS] Starting real scraping with orchestrator...", {
-      totalToGenerate: totalLeadsToGenerate,
+    // Generate leads using Gemini AI
+    console.log("[SCRAPE_LEADS] Starting lead generation with Gemini AI...", {
+      criteriaKeys: Object.keys(criteria),
       previousLeadsCount: previousLeads.size,
       isAdvancedMatching
     });
     
-    // Use the real scraping orchestrator
-    let scrapingResult;
+    // Use Gemini to generate leads
+    let geminiLeads: ScrapedLead[] = [];
     try {
-      scrapingResult = await leadScraper.scrapeLeads(
-        criteria as ICPCriteria,
-        totalLeadsToGenerate,
-        previousLeads,
-        isAdvancedMatching
-      );
-      console.log("[SCRAPE_LEADS] Scraping orchestrator completed successfully");
-    } catch (scrapeError: unknown) {
-      const err = scrapeError as { message?: string; stack?: string };
-      console.error("[SCRAPE_LEADS] Scraping orchestrator failed:", {
+      geminiLeads = await generateLeadsWithGemini(criteria as ICPCriteria);
+      console.log("[SCRAPE_LEADS] Gemini lead generation completed successfully");
+    } catch (geminiError: unknown) {
+      const err = geminiError as { message?: string; stack?: string };
+      console.error("[SCRAPE_LEADS] Gemini lead generation failed:", {
         message: err.message,
         stack: err.stack
       });
       return NextResponse.json(
         { 
-          error: "Scraping failed", 
-          message: "Failed to scrape leads. Please try again.",
+          error: "Lead generation failed", 
+          message: "Failed to generate leads. Please try again.",
           details: err.message
         },
         { status: 500 }
       );
     }
     
-    // Convert scraped leads to legacy Lead format
-    const allLeads = scrapingResult.leads.map(convertScrapedLeadToLead);
+    // Convert Gemini leads to legacy Lead format
+    const allLeads = geminiLeads.map(convertScrapedLeadToLead);
     
-    console.log(`[SCRAPE_LEADS] Real scraping complete. Found ${allLeads.length} leads from ${scrapingResult.sources.length} sources`);
-    if (scrapingResult.errors.length > 0) {
-      console.log("[SCRAPE_LEADS] Scraping errors:", scrapingResult.errors);
-    }
+    console.log(`[SCRAPE_LEADS] Lead generation complete. Generated ${allLeads.length} leads`);
     
     if (allLeads.length === 0) {
-      console.log("[SCRAPE_LEADS] No leads found, returning empty result");
+      console.log("[SCRAPE_LEADS] No leads generated, returning empty result");
       return NextResponse.json({ 
         leads: [],
         pagination: { page: 1, limit: limitNum, total: 0, pages: 0 },
