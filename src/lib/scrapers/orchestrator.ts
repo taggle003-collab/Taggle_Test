@@ -61,15 +61,22 @@ export class LeadScrapingOrchestrator {
 
     const runScraper = async (scraper: BaseScraper): Promise<ScrapingResult> => {
       try {
-        console.log(`Scraping with ${scraper.constructor.name}...`);
+        console.log(`[Orchestrator] Starting scrape with ${scraper.constructor.name}...`);
         const result = await scraper.scrape(effectiveCriteria);
 
         result.leads = result.leads.filter((lead) => !previouslyScrapedEmails.has(lead.email));
 
+        console.log(`[Orchestrator] ${scraper.constructor.name} completed:`, {
+          rawLeads: result.leads.length,
+          afterFilter: result.leads.filter((lead) => !previouslyScrapedEmails.has(lead.email)).length,
+          errors: result.errors.length,
+          errorDetails: result.errors.slice(0, 3)
+        });
+
         return result;
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
-        console.error(`Error with ${scraper.constructor.name}:`, error);
+        console.error(`[Orchestrator] Error with ${scraper.constructor.name}:`, error);
 
         return {
           leads: [],
@@ -84,6 +91,13 @@ export class LeadScrapingOrchestrator {
     allResults.leads.push(...primaryResult.leads);
     allResults.errors.push(...primaryResult.errors);
     allResults.sources.push(...primaryResult.sources);
+
+    console.log(`[Orchestrator] Primary scraper (${primaryScraper.constructor.name}) results:`, {
+      leadsFound: primaryResult.leads.length,
+      errors: primaryResult.errors.length,
+      errorDetails: primaryResult.errors.slice(0, 5),
+      sources: primaryResult.sources
+    });
 
     let uniqueCount = this.removeDuplicates(allResults.leads).length;
 
@@ -103,6 +117,12 @@ export class LeadScrapingOrchestrator {
       allResults.leads.push(...llmResult.leads);
       allResults.errors.push(...llmResult.errors);
       allResults.sources.push(...llmResult.sources);
+
+      console.log(`[Orchestrator] LLM scraper results:`, {
+        leadsFound: llmResult.leads.length,
+        errors: llmResult.errors.length,
+        errorDetails: llmResult.errors.slice(0, 3)
+      });
 
       uniqueCount = this.removeDuplicates(allResults.leads).length;
     }
@@ -130,6 +150,10 @@ export class LeadScrapingOrchestrator {
           allResults.leads.push(...scraperResult.leads);
           allResults.errors.push(...scraperResult.errors);
           allResults.sources.push(...scraperResult.sources);
+          console.log(`[Orchestrator] Mock scraper ${mockFallbackScrapers[index].constructor.name}:`, {
+            leadsFound: scraperResult.leads.length,
+            errors: scraperResult.errors.length
+          });
         } else {
           allResults.errors.push(`${mockFallbackScrapers[index].constructor.name}: ${result.reason}`);
         }
@@ -146,9 +170,9 @@ export class LeadScrapingOrchestrator {
     const uniqueSources = allResults.sources.filter((source, index, arr) => arr.indexOf(source) === index);
 
     console.log(
-      `Scraping complete. Found ${limitedLeads.length} unique leads from ${uniqueSources.length} sources.`
+      `[Orchestrator] Scraping complete. Found ${limitedLeads.length} unique leads from ${uniqueSources.length} sources.`
     );
-    console.log(`Errors: ${allResults.errors.length}`);
+    console.log(`[Orchestrator] Errors (${allResults.errors.length}):`, allResults.errors.length > 0 ? allResults.errors.slice(0, 10) : 'none');
 
     return {
       leads: limitedLeads,

@@ -41,7 +41,18 @@ export class KaggleAPIScraper extends BaseScraper {
   async scrape(criteria: ICPCriteria): Promise<ScrapingResult> {
     const desired = Math.max(1, Math.min(criteria.desiredLeads ?? 50, 200));
 
+    console.log('[KAGGLE_API] Starting scrape', {
+      hasToken: !!this.apiToken,
+      tokenLength: this.apiToken?.length,
+      tokenPrefix: this.apiToken ? this.apiToken.slice(0, 6) + '...' : 'none',
+      industry: criteria.industry,
+      location: criteria.location,
+      companySize: criteria.companySize,
+      desired
+    });
+
     if (!this.apiToken) {
+      console.error('[KAGGLE_API] ERROR: KAGGLE_API_TOKEN not configured');
       return {
         leads: [],
         errors: ['KAGGLE_API_TOKEN not configured'],
@@ -49,17 +60,26 @@ export class KaggleAPIScraper extends BaseScraper {
       };
     }
 
-    console.log('[KAGGLE_API] Starting token-auth scrape', {
-      industry: criteria.industry,
-      location: criteria.location,
-      companySize: criteria.companySize,
-      desired
-    });
-
     const errors: string[] = [];
 
+    // Test authentication first
+    console.log('[KAGGLE_API] Testing API authentication...');
+    const authResult = await this.testAuthentication();
+    if (!authResult.success) {
+      console.error('[KAGGLE_API] Authentication failed:', authResult.error);
+      errors.push(`Kaggle API authentication failed: ${authResult.error}`);
+      return {
+        leads: [],
+        errors,
+        sources: [this.source]
+      };
+    }
+    console.log('[KAGGLE_API] Authentication successful:', authResult.data);
+
+    console.log('[KAGGLE_API] Starting dataset search...');
     const datasets = await this.searchKaggleDatasets(criteria);
     if (datasets.length === 0) {
+      console.error('[KAGGLE_API] ERROR: No datasets found in search results');
       return {
         leads: [],
         errors: ['No Kaggle datasets found for the given criteria'],
@@ -68,6 +88,11 @@ export class KaggleAPIScraper extends BaseScraper {
     }
 
     console.log(`[KAGGLE_API] Found ${datasets.length} candidate datasets`);
+    console.log('[KAGGLE_API] Sample datasets:', datasets.slice(0, 3).map(d => ({
+      ref: d.ref,
+      title: d.title,
+      id: d.id
+    })));
 
     const leads: ScrapedLead[] = [];
     const qualityThreshold = criteria.qualityScore || 60;
@@ -76,32 +101,51 @@ export class KaggleAPIScraper extends BaseScraper {
       if (leads.length >= desired) break;
 
       const datasetRef = this.getDatasetRef(dataset);
-      if (!datasetRef) continue;
+      console.log(`[KAGGLE_API] Processing dataset ${leads.length}/${desired}:`, { datasetRef, title: dataset.title });
+
+      if (!datasetRef) {
+        console.warn('[KAGGLE_API] Skipping dataset - unable to extract ref:', dataset);
+        continue;
+      }
 
       try {
         const records = await this.fetchDatasetRecords(datasetRef);
-        if (records.length === 0) continue;
+        console.log(`[KAGGLE_API] Dataset ${datasetRef} returned ${records.length} records`);
+        
+        if (records.length === 0) {
+          console.warn(`[KAGGLE_API] No records from dataset ${datasetRef}`);
+          continue;
+        }
 
+        console.log('[KAGGLE_API] Sample record:', records[0]);
         const filtered = this.filterCompaniesByCriteria(records, criteria);
-        if (filtered.length === 0) continue;
+        console.log(`[KAGGLE_API] After filtering: ${filtered.length}/${records.length} records match criteria`);
+        
+        if (filtered.length === 0) {
+          console.warn(`[KAGGLE_API] No records match criteria for dataset ${datasetRef}`);
+          continue;
+        }
 
         const datasetLeads = filtered
           .map((company, index) => this.toLead(company, datasetRef, index, criteria))
           .filter((lead) => (lead.matchQualityScore || 0) >= qualityThreshold);
 
+        console.log(`[KAGGLE_API] From ${filtered.length} filtered records, ${datasetLeads.length} passed quality threshold (${qualityThreshold})`);
         leads.push(...datasetLeads);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
+        console.error(`[KAGGLE_API] Error processing dataset ${datasetRef}:`, error);
         errors.push(`Dataset ${datasetRef}: ${message}`);
       }
     }
 
     const uniqueLeads = this.removeDuplicateEmails(leads);
 
-    console.log('[KAGGLE_API] Successfully extracted leads', {
-      total: leads.length,
-      unique: uniqueLeads.length,
-      errors: errors.length
+    console.log('[KAGGLE_API] Final results:', {
+      totalLeads: leads.length,
+      uniqueLeads: uniqueLeads.length,
+      errors: errors.length,
+      errorMessages: errors
     });
 
     return {
@@ -114,6 +158,46 @@ export class KaggleAPIScraper extends BaseScraper {
   generateSearchQueries(criteria: ICPCriteria): string[] {
     void criteria;
     return [];
+  }
+
+  private async testAuthentication(): Promise<{ success: boolean; error?: string; data?: unknown }> {
+    try {
+      const url = 'https://www.kaggle.com/api/v1/users/whoami';
+      console.log('[KAGGLE_API] Testing auth endpoint:', url);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiToken}`
+        }
+      });
+
+      console.log('[KAGGLE_API] Auth response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const bodyText = await this.safeReadText(response);
+        console.error('[KAGGLE_API] Auth failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: bodyText.slice(0, 500)
+        });
+        return {
+          success: false,
+          error: `Authentication failed (${response.status}): ${bodyText.slice(0, 200)}`
+        };
+      }
+
+      const data = await response.json();
+      console.log('[KAGGLE_API] Auth successful, user data:', data);
+      return { success: true, data };
+    } catch (error: unknown) {
+      console.error('[KAGGLE_API] Auth error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown authentication error';
+      return {
+        success: false,
+        error: errorMessage
+      };
+    }
   }
 
   async scrapePage(query: string): Promise<Partial<ScrapedLead>[]> {
@@ -134,9 +218,10 @@ export class KaggleAPIScraper extends BaseScraper {
       'https://www.kaggle.com/api/v1/datasets/list'
     ];
 
-    console.log('[KAGGLE_API] Searching datasets for:', params.search);
+    console.log('[KAGGLE_API] Searching datasets with params:', params);
 
     for (const url of endpoints) {
+      console.log('[KAGGLE_API] Trying endpoint:', url);
       const result = await this.fetchJson(url, params);
 
       if (!result.ok) {
@@ -149,23 +234,41 @@ export class KaggleAPIScraper extends BaseScraper {
         continue;
       }
 
+      console.log('[KAGGLE_API] Request succeeded, parsing response...');
+      console.log('[KAGGLE_API] Response type:', typeof result.json);
+      console.log('[KAGGLE_API] Response keys:', result.json && typeof result.json === 'object' ? Object.keys(result.json) : 'N/A');
+
       const data = result.json as unknown;
 
       if (Array.isArray(data)) {
+        console.log('[KAGGLE_API] Response is array with', data.length, 'items');
         return data as KaggleDataset[];
       }
 
       const maybe = data as DatasetSearchResponse;
       if (maybe && Array.isArray(maybe.results)) {
+        console.log('[KAGGLE_API] Response has results array with', maybe.results.length, 'items');
         return maybe.results;
       }
 
       if (data && typeof data === 'object' && 'datasets' in (data as Record<string, unknown>)) {
         const datasets = (data as { datasets?: unknown }).datasets;
-        if (Array.isArray(datasets)) return datasets as KaggleDataset[];
+        if (Array.isArray(datasets)) {
+          console.log('[KAGGLE_API] Response has datasets array with', datasets.length, 'items');
+          return datasets as KaggleDataset[];
+        }
       }
+
+      console.warn('[KAGGLE_API] Could not parse response format:', {
+        isArray: Array.isArray(data),
+        isObject: typeof data === 'object',
+        hasResults: data && typeof data === 'object' && 'results' in data,
+        hasDatasets: data && typeof data === 'object' && 'datasets' in data,
+        keys: data && typeof data === 'object' ? Object.keys(data) : 'N/A'
+      });
     }
 
+    console.error('[KAGGLE_API] No datasets found from any endpoint');
     return [];
   }
 
