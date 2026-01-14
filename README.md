@@ -24,13 +24,12 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 Copy `.env.example` to `.env.local` and fill in values as needed:
 
-- `KAGGLE_API_TOKEN` (required in production): Kaggle token used by `KaggleAPIScraper` to authenticate to the Kaggle API.
-- `LLM_API_KEY` (optional): OpenRouter API key used by the LLM fallback scraper.
+- `LLM_API_KEY` (required in production): OpenRouter API key used by `LLMScraper` to generate leads. Get your key at https://openrouter.ai (starts with `sk-or-`).
 - `ALLOW_MOCK_FALLBACK` (optional): Set to `true` to allow mock scrapers when real scrapers fail (not recommended in production).
 
 ### Vercel
 
-In the Vercel dashboard, add `KAGGLE_API_TOKEN` under **Settings → Environment Variables** and enable it for **Production**, **Preview**, and **Development**, then redeploy.
+In the Vercel dashboard, add `LLM_API_KEY` under **Settings → Environment Variables** and enable it for **Production**, **Preview**, and **Development**, then redeploy.
 
 For more detailed instructions (dashboard + CLI), see [`VERCEL_ENVIRONMENT_VARIABLES.md`](./VERCEL_ENVIRONMENT_VARIABLES.md).
 

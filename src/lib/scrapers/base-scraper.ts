@@ -21,7 +21,6 @@ export interface ScrapedLead {
   source:
     | "gemini"
     | "llm"
-    | "kaggle"
     | "reddit"
     | "twitter"
     | "youtube"

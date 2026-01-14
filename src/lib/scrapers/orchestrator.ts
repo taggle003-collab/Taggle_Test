@@ -1,7 +1,6 @@
 /// <reference types="node" />
 /// <reference lib="es2020" />
 
-import { KaggleAPIScraper } from './kaggle-api-scraper';
 import { LLMScraper } from './llm-scraper';
 import { RedditScraper } from './reddit-scraper';
 import { GoogleSearchScraper } from './google-scraper';
@@ -17,9 +16,6 @@ export class LeadScrapingOrchestrator {
     this.scrapers = [
       // Primary lead generator (LLM - OpenRouter) - most reliable, generates valid leads consistently
       new LLMScraper(),
-
-      // Fallback lead generator (Kaggle datasets via KAGGLE_API_TOKEN)
-      new KaggleAPIScraper(),
 
       // Mock fallbacks (only in development or when ALLOW_MOCK_FALLBACK=true)
       new RedditScraper(),
@@ -103,33 +99,15 @@ export class LeadScrapingOrchestrator {
     allResults.errors.push(...primaryResult.errors);
     allResults.sources.push(...primaryResult.sources);
 
-    let uniqueCount = this.removeDuplicates(allResults.leads).length;
+    const uniqueCount = this.removeDuplicates(allResults.leads).length;
     console.log(`[Orchestrator] Primary scraper returned ${primaryResult.leads.length} leads (${uniqueCount} unique)`);
 
     // Check configuration for fallback scrapers
-    const kaggleConfigured = !!process.env.KAGGLE_API_TOKEN;
     const allowMockFallback =
       process.env.NODE_ENV !== "production" || process.env.ALLOW_MOCK_FALLBACK === "true";
 
-    // Try Kaggle scraper as fallback if LLM didn't return enough leads
-    const kaggleScraper = fallbackScrapers.find((scraper) => scraper.source === "kaggle");
-
-    if (uniqueCount < limit && kaggleConfigured && kaggleScraper) {
-      console.log(
-        `[Orchestrator] Primary returned ${uniqueCount}/${limit} unique leads. Running Kaggle fallback... (kaggleConfigured=${kaggleConfigured})`
-      );
-
-      const kaggleResult = await runScraper(kaggleScraper, 1); // 1 retry for Kaggle
-      allResults.leads.push(...kaggleResult.leads);
-      allResults.errors.push(...kaggleResult.errors);
-      allResults.sources.push(...kaggleResult.sources);
-
-      uniqueCount = this.removeDuplicates(allResults.leads).length;
-      console.log(`[Orchestrator] After Kaggle: ${uniqueCount}/${limit} unique leads`);
-    }
-
     // If still short, optionally fall back to mock scrapers (disabled by default in production).
-    const mockFallbackScrapers = fallbackScrapers.filter((scraper) => scraper !== kaggleScraper);
+    const mockFallbackScrapers = fallbackScrapers;
     const shouldRunMockFallback = uniqueCount < limit && allowMockFallback;
 
     if (!shouldRunMockFallback && uniqueCount < limit) {
