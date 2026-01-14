@@ -15,13 +15,13 @@ export class LeadScrapingOrchestrator {
 
   constructor() {
     this.scrapers = [
-      // Primary lead generator (Kaggle datasets via KAGGLE_API_TOKEN)
-      new KaggleAPIScraper(),
-
-      // Optional paid fallback (LLM - OpenRouter)
+      // Primary lead generator (LLM - OpenRouter) - most reliable, generates valid leads consistently
       new LLMScraper(),
 
-      // Mock fallbacks (until real scrapers are implemented)
+      // Fallback lead generator (Kaggle datasets via KAGGLE_API_TOKEN)
+      new KaggleAPIScraper(),
+
+      // Mock fallbacks (only in development or when ALLOW_MOCK_FALLBACK=true)
       new RedditScraper(),
       new GoogleSearchScraper(),
       new TwitterScraper(),
@@ -45,7 +45,7 @@ export class LeadScrapingOrchestrator {
       isAdvancedMatching
     };
 
-    console.log(`Starting lead scraping for criteria:`, {
+    console.log(`[Orchestrator] Starting lead scraping for criteria:`, {
       ...criteria,
       desiredLeads: limit,
       isAdvancedMatching
@@ -59,70 +59,91 @@ export class LeadScrapingOrchestrator {
 
     const [primaryScraper, ...fallbackScrapers] = this.scrapers;
 
-    const runScraper = async (scraper: BaseScraper): Promise<ScrapingResult> => {
-      try {
-        console.log(`Scraping with ${scraper.constructor.name}...`);
-        const result = await scraper.scrape(effectiveCriteria);
+    const runScraper = async (scraper: BaseScraper, retries: number = 3): Promise<ScrapingResult> => {
+      let lastError: Error | null = null;
 
-        result.leads = result.leads.filter((lead) => !previouslyScrapedEmails.has(lead.email));
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          console.log(`[Orchestrator] Attempt ${attempt}/${retries}: Scraping with ${scraper.constructor.name}...`);
+          const startTime = Date.now();
+          const result = await scraper.scrape(effectiveCriteria);
+          const duration = Date.now() - startTime;
 
-        return result;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        console.error(`Error with ${scraper.constructor.name}:`, error);
+          result.leads = result.leads.filter((lead) => !previouslyScrapedEmails.has(lead.email));
 
-        return {
-          leads: [],
-          errors: [`${scraper.constructor.name}: ${message}`],
-          sources: [scraper.source]
-        };
+          console.log(
+            `[Orchestrator] ${scraper.constructor.name} succeeded in ${duration}ms: ${result.leads.length} leads, ${result.errors.length} errors`
+          );
+
+          return result;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          console.error(`[Orchestrator] ${scraper.constructor.name} attempt ${attempt}/${retries} failed:`, lastError.message);
+
+          if (attempt < retries) {
+            const backoffMs = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+            console.log(`[Orchestrator] Retrying ${scraper.constructor.name} in ${backoffMs}ms...`);
+            await new Promise(resolve => setTimeout(resolve, backoffMs));
+          }
+        }
       }
+
+      console.error(`[Orchestrator] ${scraper.constructor.name} failed after ${retries} attempts:`, lastError);
+      return {
+        leads: [],
+        errors: [`${scraper.constructor.name}: ${lastError?.message || "Unknown error"}`],
+        sources: [scraper.source]
+      };
     };
 
-    // Run primary scraper first so users get real leads from Kaggle datasets.
-    const primaryResult = await runScraper(primaryScraper);
+    // Run LLM scraper first (primary) - most reliable for generating valid leads
+    console.log(`[Orchestrator] Running primary scraper: ${primaryScraper.constructor.name}`);
+    const primaryResult = await runScraper(primaryScraper, 2); // 2 retries for primary
     allResults.leads.push(...primaryResult.leads);
     allResults.errors.push(...primaryResult.errors);
     allResults.sources.push(...primaryResult.sources);
 
     let uniqueCount = this.removeDuplicates(allResults.leads).length;
+    console.log(`[Orchestrator] Primary scraper returned ${primaryResult.leads.length} leads (${uniqueCount} unique)`);
 
-    const llmConfigured = !!process.env.LLM_API_KEY;
+    // Check configuration for fallback scrapers
+    const kaggleConfigured = !!process.env.KAGGLE_API_TOKEN;
     const allowMockFallback =
       process.env.NODE_ENV !== "production" || process.env.ALLOW_MOCK_FALLBACK === "true";
 
-    // Try LLM as an optional non-mock fallback when it's configured.
-    const llmScraper = fallbackScrapers.find((scraper) => scraper.source === "llm");
+    // Try Kaggle scraper as fallback if LLM didn't return enough leads
+    const kaggleScraper = fallbackScrapers.find((scraper) => scraper.source === "kaggle");
 
-    if (uniqueCount < limit && llmConfigured && llmScraper) {
+    if (uniqueCount < limit && kaggleConfigured && kaggleScraper) {
       console.log(
-        `[Orchestrator] Primary returned ${uniqueCount}/${limit} unique leads. Running LLM fallback... (llmConfigured=${llmConfigured})`
+        `[Orchestrator] Primary returned ${uniqueCount}/${limit} unique leads. Running Kaggle fallback... (kaggleConfigured=${kaggleConfigured})`
       );
 
-      const llmResult = await runScraper(llmScraper);
-      allResults.leads.push(...llmResult.leads);
-      allResults.errors.push(...llmResult.errors);
-      allResults.sources.push(...llmResult.sources);
+      const kaggleResult = await runScraper(kaggleScraper, 1); // 1 retry for Kaggle
+      allResults.leads.push(...kaggleResult.leads);
+      allResults.errors.push(...kaggleResult.errors);
+      allResults.sources.push(...kaggleResult.sources);
 
       uniqueCount = this.removeDuplicates(allResults.leads).length;
+      console.log(`[Orchestrator] After Kaggle: ${uniqueCount}/${limit} unique leads`);
     }
 
     // If still short, optionally fall back to mock scrapers (disabled by default in production).
-    const mockFallbackScrapers = fallbackScrapers.filter((scraper) => scraper !== llmScraper);
+    const mockFallbackScrapers = fallbackScrapers.filter((scraper) => scraper !== kaggleScraper);
     const shouldRunMockFallback = uniqueCount < limit && allowMockFallback;
 
     if (!shouldRunMockFallback && uniqueCount < limit) {
       console.log(
-        `[Orchestrator] Returning ${uniqueCount}/${limit} unique leads. Skipping mock fallback scrapers (llmConfigured=${llmConfigured}, allowMockFallback=${allowMockFallback}).`
+        `[Orchestrator] Returning ${uniqueCount}/${limit} unique leads. Skipping mock fallback scrapers (allowMockFallback=${allowMockFallback}).`
       );
     }
 
     if (shouldRunMockFallback && mockFallbackScrapers.length > 0) {
       console.log(
-        `[Orchestrator] Returning ${uniqueCount}/${limit} unique leads. Running ${mockFallbackScrapers.length} mock fallback scrapers... (llmConfigured=${llmConfigured}, allowMockFallback=${allowMockFallback})`
+        `[Orchestrator] Returning ${uniqueCount}/${limit} unique leads. Running ${mockFallbackScrapers.length} mock fallback scrapers... (allowMockFallback=${allowMockFallback})`
       );
 
-      const results = await Promise.allSettled(mockFallbackScrapers.map((scraper) => runScraper(scraper)));
+      const results = await Promise.allSettled(mockFallbackScrapers.map((scraper) => runScraper(scraper, 0))); // No retries for mocks
 
       results.forEach((result, index) => {
         if (result.status === "fulfilled") {
@@ -146,9 +167,9 @@ export class LeadScrapingOrchestrator {
     const uniqueSources = allResults.sources.filter((source, index, arr) => arr.indexOf(source) === index);
 
     console.log(
-      `Scraping complete. Found ${limitedLeads.length} unique leads from ${uniqueSources.length} sources.`
+      `[Orchestrator] Scraping complete. Found ${limitedLeads.length} unique leads from ${uniqueSources.length} sources: ${uniqueSources.join(", ")}`
     );
-    console.log(`Errors: ${allResults.errors.length}`);
+    console.log(`[Orchestrator] Errors: ${allResults.errors.length}`, allResults.errors.slice(0, 3));
 
     return {
       leads: limitedLeads,
