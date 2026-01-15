@@ -15,7 +15,8 @@ import {
   Home,
   Contact,
   BarChart3,
-  Zap
+  Zap,
+  PenTool
 } from "lucide-react";
 import { SignOutButton } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,14 @@ const Sidebar = ({ isAdmin, userPlan, userEmail }: SidebarProps) => {
       name: "Lead Scraper",
       icon: Search,
       href: "/dashboard/leads",
+    });
+  }
+
+  if (hasFeature(userPlan, userEmail, "messageCrafting")) {
+    menuItems.push({
+      name: "Craft Messages",
+      icon: PenTool,
+      href: "/dashboard/craft-messages",
     });
   }
 

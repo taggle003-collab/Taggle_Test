@@ -29,6 +29,7 @@ export const DODO_PLANS = {
       automations: false,
       realtimeNotifications: false,
       advancedAnalytics: false,
+      messageCrafting: false,
     },
   },
   solo: {
@@ -68,6 +69,7 @@ export const DODO_PLANS = {
       automations: "limited",
       realtimeNotifications: true,
       advancedAnalytics: "limited",
+      messageCrafting: true,
     },
   },
   pro: {
@@ -105,6 +107,7 @@ export const DODO_PLANS = {
       automations: "full",
       realtimeNotifications: true,
       advancedAnalytics: "full",
+      messageCrafting: true,
     },
   },
 };
