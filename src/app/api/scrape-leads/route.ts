@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { leadScraper } from "@/lib/scrapers/orchestrator";
-import { ScrapedLead } from "@/lib/scrapers/base-scraper";
+import { ScrapedLead, ScrapingResult } from "@/lib/scrapers/base-scraper";
 
 // Type definitions
 type LocationKey = 'USA' | 'India' | 'UK' | 'Europe' | 'Canada' | 'Australia' | 'Japan' | 'Singapore' | 'Dubai' | 'Asia';
@@ -39,6 +39,7 @@ interface Lead {
   matchedCriteria?: string[];
   source: string;
   sourceUrl?: string;
+  isMockData?: boolean;
 }
 
 // Convert ScrapedLead to Lead interface for compatibility
@@ -64,7 +65,8 @@ function convertScrapedLeadToLead(scrapedLead: ScrapedLead): Lead {
     matchQualityScore: scrapedLead.matchQualityScore,
     matchedCriteria: scrapedLead.matchedCriteria,
     source: scrapedLead.source,
-    sourceUrl: scrapedLead.sourceUrl
+    sourceUrl: scrapedLead.sourceUrl,
+    isMockData: scrapedLead.source === 'reddit' || scrapedLead.source === 'twitter' || scrapedLead.source === 'youtube' || scrapedLead.source === 'google' || scrapedLead.source === 'instagram' || scrapedLead.source === 'facebook' || scrapedLead.source === 'discord'
   };
 }
 
@@ -361,17 +363,38 @@ export async function POST(req: Request) {
       isAdvancedMatching
     });
     
+    // Set 5-second total timeout for entire request
+    const requestTimeout = 5000; // 5 seconds max
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), requestTimeout);
+
     // Use the real scraping orchestrator
-    let scrapingResult;
+    let scrapingResult: ScrapingResult;
     try {
-      scrapingResult = await leadScraper.scrapeLeads(
-        criteria as ICPCriteria,
-        totalLeadsToGenerate,
-        previousLeads,
-        isAdvancedMatching
-      );
+      const result = await Promise.race([
+        leadScraper.scrapeLeads(
+          criteria as ICPCriteria,
+          totalLeadsToGenerate,
+          previousLeads,
+          isAdvancedMatching
+        ),
+        new Promise((_, reject) => {
+          controller.signal.addEventListener('abort', () => {
+            reject(new Error('Request timeout (>5s)'));
+          });
+        })
+      ]);
+      
+      clearTimeout(timeoutId);
+      
+      if (result instanceof Error) {
+        throw result;
+      }
+      
+      scrapingResult = result as ScrapingResult;
       console.log("[SCRAPE_LEADS] Scraping orchestrator completed successfully");
     } catch (scrapeError: unknown) {
+      clearTimeout(timeoutId);
       const err = scrapeError as { message?: string; stack?: string };
       console.error("[SCRAPE_LEADS] Scraping orchestrator failed:", {
         message: err.message,

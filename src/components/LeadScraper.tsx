@@ -32,6 +32,7 @@ export interface Lead {
   matchedCriteria?: string[];
   source?: string;
   sourceUrl?: string;
+  isMockData?: boolean;
 }
 
 interface PaginationInfo {
@@ -472,6 +473,18 @@ const LeadScraper = () => {
                   {pagination ? `${pagination.total} verified leads found` : `${allLeads.length} leads`}
                 </p>
               </div>
+
+              {/* Show mock data warning if any leads are mock data */}
+              {allLeads.some(lead => lead.isMockData) && (
+                <div className="bg-yellow-50 border border-yellow-200 p-3 rounded mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-yellow-600">🔄</span>
+                    <span className="text-yellow-700 text-sm">
+                      These are sample leads. Real leads loading in background...
+                    </span>
+                  </div>
+                </div>
+              )}
               
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />

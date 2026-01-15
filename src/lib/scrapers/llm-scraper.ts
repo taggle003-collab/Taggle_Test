@@ -241,6 +241,11 @@ export class LLMScraper extends BaseScraper {
         ]
       });
 
+      // Add 4-second timeout for OpenRouter API call
+      const timeout = 4000; // 4 seconds max
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -249,9 +254,13 @@ export class LLMScraper extends BaseScraper {
           "HTTP-Referer": "https://leadscraperapp.com",
           "X-Title": "Lead Scraper App"
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
+
+      console.log(`[LLM_SCRAPER] API call completed in ${Date.now() - startedAt}ms (within ${timeout}ms timeout)`);
       console.log("[LLM_SCRAPER] API Response:", response.status, response.statusText);
 
       if (!response.ok) {

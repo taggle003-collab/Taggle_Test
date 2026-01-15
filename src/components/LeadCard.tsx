@@ -65,9 +65,16 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
             className="w-5 h-5 mt-1 accent-[#FF6B35] cursor-pointer flex-shrink-0"
           />
           <div className="flex-1 min-w-0">
-            <h3 className="text-white font-semibold text-lg truncate">
-              {lead.firstName} {lead.lastName}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-white font-semibold text-lg truncate">
+                {lead.firstName} {lead.lastName}
+              </h3>
+              {lead.isMockData && (
+                <span className="bg-yellow-900/30 text-yellow-400 px-2 py-1 rounded text-xs font-medium border border-yellow-900/50" title="Sample Data">
+                  Sample
+                </span>
+              )}
+            </div>
             <p className="text-gray-400 text-sm truncate">{lead.title}</p>
           </div>
         </div>

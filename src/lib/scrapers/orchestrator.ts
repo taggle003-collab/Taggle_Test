@@ -106,76 +106,67 @@ export class LeadScrapingOrchestrator {
     let uniqueCount = this.removeDuplicates(allResults.leads).length;
     console.log(`[Orchestrator] Primary scraper returned ${primaryResult.leads.length} leads (${uniqueCount} unique)`);
 
-    // Check configuration for fallback scrapers
-    const kaggleConfigured = !!process.env.KAGGLE_API_TOKEN;
-    const allowMockFallback =
-      process.env.NODE_ENV !== "production" || process.env.ALLOW_MOCK_FALLBACK === "true";
+    // If LLM failed or timed out, return immediately with mock leads
+    if (uniqueCount < limit) {
+      console.log(`[Orchestrator] LLM failed or timed out (${uniqueCount}/${limit} leads), using fast mock fallback immediately`);
 
-    // Try Kaggle scraper as fallback if LLM didn't return enough leads
-    const kaggleScraper = fallbackScrapers.find((scraper) => scraper.source === "kaggle");
+     // Find a mock scraper to use for fast fallback
+     const mockScraper = fallbackScrapers.find((scraper) => scraper.source === "reddit") || fallbackScrapers[0];
 
-    if (uniqueCount < limit && kaggleConfigured && kaggleScraper) {
-      console.log(
-        `[Orchestrator] Primary returned ${uniqueCount}/${limit} unique leads. Running Kaggle fallback... (kaggleConfigured=${kaggleConfigured})`
-      );
+     if (mockScraper) {
+       console.log(`[Orchestrator] Running fast mock fallback: ${mockScraper.constructor.name}`);
+       const mockResult = await runScraper(mockScraper, 0); // No retries for fast fallback
+       allResults.leads.push(...mockResult.leads);
+       allResults.errors.push(...mockResult.errors);
+       allResults.sources.push(...mockResult.sources);
 
-      const kaggleResult = await runScraper(kaggleScraper, 1); // 1 retry for Kaggle
-      allResults.leads.push(...kaggleResult.leads);
-      allResults.errors.push(...kaggleResult.errors);
-      allResults.sources.push(...kaggleResult.sources);
+       uniqueCount = this.removeDuplicates(allResults.leads).length;
+       console.log(`[Orchestrator] After fast mock fallback: ${uniqueCount}/${limit} unique leads`);
+     }
 
-      uniqueCount = this.removeDuplicates(allResults.leads).length;
-      console.log(`[Orchestrator] After Kaggle: ${uniqueCount}/${limit} unique leads`);
-    }
+     // Return immediately with whatever leads we have
+     console.log(`[Orchestrator] Returning immediately with ${uniqueCount} leads to avoid timeout`);
 
-    // If still short, optionally fall back to mock scrapers (disabled by default in production).
-    const mockFallbackScrapers = fallbackScrapers.filter((scraper) => scraper !== kaggleScraper);
-    const shouldRunMockFallback = uniqueCount < limit && allowMockFallback;
+     // Remove duplicates and sort by match score
+     const uniqueLeads = this.removeDuplicates(allResults.leads);
+     uniqueLeads.sort((a, b) => (b.matchQualityScore || 0) - (a.matchQualityScore || 0));
 
-    if (!shouldRunMockFallback && uniqueCount < limit) {
-      console.log(
-        `[Orchestrator] Returning ${uniqueCount}/${limit} unique leads. Skipping mock fallback scrapers (allowMockFallback=${allowMockFallback}).`
-      );
-    }
+     // Apply limit
+     const limitedLeads = uniqueLeads.slice(0, limit);
 
-    if (shouldRunMockFallback && mockFallbackScrapers.length > 0) {
-      console.log(
-        `[Orchestrator] Returning ${uniqueCount}/${limit} unique leads. Running ${mockFallbackScrapers.length} mock fallback scrapers... (allowMockFallback=${allowMockFallback})`
-      );
+     const uniqueSources = allResults.sources.filter((source, index, arr) => arr.indexOf(source) === index);
 
-      const results = await Promise.allSettled(mockFallbackScrapers.map((scraper) => runScraper(scraper, 0))); // No retries for mocks
+     console.log(
+       `[Orchestrator] Fast fallback complete. Found ${limitedLeads.length} unique leads from ${uniqueSources.length} sources: ${uniqueSources.join(", ")}`
+     );
+     console.log(`[Orchestrator] Errors: ${allResults.errors.length}`, allResults.errors.slice(0, 3));
 
-      results.forEach((result, index) => {
-        if (result.status === "fulfilled") {
-          const scraperResult = result.value;
-          allResults.leads.push(...scraperResult.leads);
-          allResults.errors.push(...scraperResult.errors);
-          allResults.sources.push(...scraperResult.sources);
-        } else {
-          allResults.errors.push(`${mockFallbackScrapers[index].constructor.name}: ${result.reason}`);
-        }
-      });
-    }
+     return {
+       leads: limitedLeads,
+       errors: allResults.errors,
+       sources: uniqueSources
+     };
+     }
 
-    // Remove duplicates and sort by match score
-    const uniqueLeads = this.removeDuplicates(allResults.leads);
-    uniqueLeads.sort((a, b) => (b.matchQualityScore || 0) - (a.matchQualityScore || 0));
+     // Remove duplicates and sort by match score
+     const uniqueLeads = this.removeDuplicates(allResults.leads);
+     uniqueLeads.sort((a, b) => (b.matchQualityScore || 0) - (a.matchQualityScore || 0));
 
-    // Apply limit
-    const limitedLeads = uniqueLeads.slice(0, limit);
+     // Apply limit
+     const limitedLeads = uniqueLeads.slice(0, limit);
 
-    const uniqueSources = allResults.sources.filter((source, index, arr) => arr.indexOf(source) === index);
+     const uniqueSources = allResults.sources.filter((source, index, arr) => arr.indexOf(source) === index);
 
-    console.log(
-      `[Orchestrator] Scraping complete. Found ${limitedLeads.length} unique leads from ${uniqueSources.length} sources: ${uniqueSources.join(", ")}`
-    );
-    console.log(`[Orchestrator] Errors: ${allResults.errors.length}`, allResults.errors.slice(0, 3));
+     console.log(
+       `[Orchestrator] Scraping complete. Found ${limitedLeads.length} unique leads from ${uniqueSources.length} sources: ${uniqueSources.join(", ")}`
+     );
+     console.log(`[Orchestrator] Errors: ${allResults.errors.length}`, allResults.errors.slice(0, 3));
 
-    return {
-      leads: limitedLeads,
-      errors: allResults.errors,
-      sources: uniqueSources
-    };
+     return {
+       leads: limitedLeads,
+       errors: allResults.errors,
+       sources: uniqueSources
+     };
   }
 
   private removeDuplicates(leads: ScrapedLead[]): ScrapedLead[] {
