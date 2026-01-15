@@ -18,17 +18,10 @@ export interface ScrapedLead {
   annualRevenue?: string;
   matchQualityScore?: number;
   matchedCriteria?: string[];
+  isMockData?: boolean;
   source:
-    | "gemini"
     | "llm"
-    | "kaggle"
-    | "reddit"
-    | "twitter"
-    | "youtube"
-    | "google"
-    | "instagram"
-    | "facebook"
-    | "discord";
+    | "mock";
   sourceUrl: string;
 }
 

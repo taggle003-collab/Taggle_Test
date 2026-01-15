@@ -32,6 +32,7 @@ export interface Lead {
   matchedCriteria?: string[];
   source?: string;
   sourceUrl?: string;
+  isMockData?: boolean;
 }
 
 interface PaginationInfo {
@@ -62,6 +63,7 @@ const LeadScraper = () => {
   const [displayedLeads, setDisplayedLeads] = useState<Lead[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isReal, setIsReal] = useState<boolean>(true);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
@@ -155,6 +157,7 @@ const LeadScraper = () => {
 
       setSearchesRemaining(data.searchesRemaining);
       if (data.rateLimitReset) setRateLimitReset(data.rateLimitReset);
+      setIsReal(data.real);
 
       if (data.leads.length === 0) {
         setMessage({ type: "error", text: "No leads found matching your criteria. Please try different filters." });
@@ -451,6 +454,13 @@ const LeadScraper = () => {
         }`}>
           {message.type === "success" ? <CheckCircle2 className="me-3 flex-shrink-0" /> : <AlertCircle className="me-3 flex-shrink-0" />}
           <span className="text-sm sm:text-base">{message.text}</span>
+        </div>
+      )}
+
+      {!isReal && allLeads.length > 0 && (
+        <div className="p-4 rounded-lg flex items-center bg-orange-900/20 text-orange-400 border border-orange-900/30">
+          <Loader2 className="me-3 flex-shrink-0 animate-spin" />
+          <span className="text-sm sm:text-base">🔄 These are sample leads. Real leads loading...</span>
         </div>
       )}
 

@@ -22,7 +22,8 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
       google: { color: "bg-green-900/30 text-green-400 border-green-900/50", label: "Google" },
       instagram: { color: "bg-pink-900/30 text-pink-400 border-pink-900/50", label: "Instagram" },
       facebook: { color: "bg-indigo-900/30 text-indigo-400 border-indigo-900/50", label: "Facebook" },
-      discord: { color: "bg-purple-900/30 text-purple-400 border-purple-900/50", label: "Discord" }
+      discord: { color: "bg-purple-900/30 text-purple-400 border-purple-900/50", label: "Discord" },
+      mock: { color: "bg-orange-900/30 text-orange-400 border-orange-900/50", label: "Sample" }
     };
 
     const badge = badges[source] || { color: "bg-gray-800 text-gray-400", label: "Unknown" };
