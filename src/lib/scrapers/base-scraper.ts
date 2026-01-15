@@ -28,8 +28,10 @@ export interface ScrapedLead {
     | "google"
     | "instagram"
     | "facebook"
-    | "discord";
-  sourceUrl: string;
+    | "discord"
+    | "mock";
+  sourceUrl?: string;
+  isMockData?: boolean;
 }
 
 export interface ICPCriteria {
