@@ -163,6 +163,7 @@ const LeadScraper = () => {
         setPagination(null);
       } else {
         setAllLeads(data.leads);
+        localStorage.setItem("leads", JSON.stringify(data.leads));
         const firstPageLeads = data.leads.slice(0, itemsPerPage);
         setDisplayedLeads(firstPageLeads);
 
@@ -176,9 +177,9 @@ const LeadScraper = () => {
           hasPrev: false,
         });
 
-        setMessage({ 
-          type: "success", 
-          text: `Found ${data.leads.length} real leads from multiple sources!` 
+        setMessage({
+          type: "success",
+          text: `Found ${data.leads.length} real leads from multiple sources!`
         });
       }
     } catch (error) {
@@ -292,21 +293,19 @@ const LeadScraper = () => {
   const handleDeleteLead = (id: string) => {
     const newAllLeads = allLeads.filter(l => l.id !== id);
     setAllLeads(newAllLeads);
-    
-    // Update displayed leads for current page
+    localStorage.setItem("leads", JSON.stringify(newAllLeads));
+
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const filteredAndSorted = getSortedLeads(getFilteredLeads(newAllLeads));
     setDisplayedLeads(filteredAndSorted.slice(startIndex, endIndex));
-    
-    // Remove from selection
+
     setSelectedLeads(prev => {
       const newSet = new Set(prev);
       newSet.delete(id);
       return newSet;
     });
-    
-    // Update pagination
+
     if (pagination) {
       const totalPages = Math.ceil(filteredAndSorted.length / itemsPerPage);
       setPagination({

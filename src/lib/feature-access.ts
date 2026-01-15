@@ -28,6 +28,8 @@ export const hasFeature = (
       return planFeatures.realtimeNotifications;
     case "advancedAnalytics":
       return planFeatures.advancedAnalytics !== false;
+    case "messageCrafting":
+      return planFeatures.messageCrafting === true;
     default:
       return false;
   }
@@ -82,10 +84,9 @@ export const getMaxSavedICPProfiles = (
   if (userEmail === "taggle003@gmail.com") {
     return 999;
   }
-  
+
   if (!userPlan) return 0;
-  
-  const level = getFeatureLevel(userPlan, userEmail, "icpMatching");
+
   if (userPlan === "solo") return 3;
   if (userPlan === "pro") return 999;
   return 0;
