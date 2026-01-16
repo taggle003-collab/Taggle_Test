@@ -16,6 +16,11 @@ interface Lead {
 
 interface CraftRequest {
   lead: Lead;
+  tone?: string;
+  style?: string;
+  sampleLines?: string;
+  talkingPoints?: string;
+  platformType?: "whatsapp" | "email" | "social";
 }
 
 export async function POST(req: Request) {
@@ -26,7 +31,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { lead }: CraftRequest = await req.json();
+    const { lead, tone, style, sampleLines, talkingPoints, platformType }: CraftRequest = await req.json();
 
     if (!lead || !lead.email || !lead.company) {
       return NextResponse.json(
@@ -44,7 +49,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const prompt = buildPrompt(lead);
+    const prompt = buildPrompt(lead, tone, style, sampleLines, talkingPoints, platformType);
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -55,6 +60,9 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         model: "deepseek/deepseek-chat",
         messages: [{
+          role: "system",
+          content: "You are an expert B2B sales copywriter. You specialize in crafting personalized outreach messages that match a specific tone and style. Always provide clean text without any markdown formatting, bolding (**), or em dashes (—)."
+        }, {
           role: "user",
           content: prompt,
         }],
@@ -75,6 +83,15 @@ export async function POST(req: Request) {
     const data = await response.json();
     const content = data.choices[0].message.content;
 
+    if (platformType) {
+      // Individual regeneration
+      const cleanMessage = content
+        .replace(/\*\*/g, "")
+        .replace(/—/g, "-")
+        .trim();
+      return NextResponse.json({ message: cleanMessage });
+    }
+
     const messages = parseMessages(content);
 
     return NextResponse.json({ messages });
@@ -88,9 +105,15 @@ export async function POST(req: Request) {
   }
 }
 
-function buildPrompt(lead: Lead): string {
-  return `You are an expert B2B sales copywriter. Craft 3 personalized outreach messages for this lead:
-
+function buildPrompt(
+  lead: Lead, 
+  tone?: string, 
+  style?: string, 
+  sampleLines?: string, 
+  talkingPoints?: string,
+  platformType?: string
+): string {
+  const contextInfo = `
 Lead Details:
 - Name: ${lead.firstName} ${lead.lastName}
 - Title: ${lead.title}
@@ -100,20 +123,45 @@ Lead Details:
 - Company Size: ${lead.companySize}
 - Email: ${lead.email}
 
+Desired Tone: ${tone || "Professional"}
+Desired Style: ${style || "Direct and value-focused"}
+User's Sample Style: ${sampleLines || "N/A"}
+Additional Talking Points: ${talkingPoints || "N/A"}
+
+IMPORTANT STYLE GUIDELINES:
+1. MATCH the User's Sample Style exactly.
+2. NO markdown formatting.
+3. NO bold text (no **).
+4. NO em dashes (use commas or hyphens instead).
+5. Clean, plain text only.
+`;
+
+  if (platformType) {
+    return `${contextInfo}
+    
+Craft ONE personalized outreach message for the ${platformType.toUpperCase()} platform.
+Make it personalized to the lead's role, company, and industry. Be concise and value-focused.
+Provide ONLY the message content, no labels or extra text.`;
+  }
+
+  return `${contextInfo}
+
+Craft 3 personalized outreach messages for this lead.
+
 Create EXACTLY 3 messages in this format (each separated by "---"):
 
 WHATSAPP_MESSAGE:
-[Casual, friendly WhatsApp message (2-3 sentences). Use emojis sparingly. Include a call-to-action.]
+[WhatsApp message based on the tone/style provided. 2-3 sentences. No bold, no markdown.]
 
 ---
 
 EMAIL_MESSAGE:
-[Professional email message (subject + body). Include: compelling subject line, personalized greeting, value proposition, and call-to-action.]
+[Email message (subject + body) based on the tone/style provided. No bold, no markdown.]
 
 ---
 
 LINKEDIN_MESSAGE:
-[LinkedIn/Social media message (1-2 sentences). Professional but conversational. Include a hook that relates to their industry.]
+[LinkedIn/Social media message based on the tone/style provided. 1-2 sentences. No bold, no markdown.]
 
 Make each message personalized to the lead's role, company, and industry. Be concise, value-focused, and include clear CTAs.`;
 }
@@ -124,7 +172,9 @@ function parseMessages(content: string): {
   social: string;
 } {
   try {
-    const sections = content.split("---");
+    // Remove any markdown bolding and em dashes
+    const cleanContent = content.replace(/\*\*/g, "").replace(/—/g, "-");
+    const sections = cleanContent.split("---");
 
     let whatsapp = "";
     let email = "";

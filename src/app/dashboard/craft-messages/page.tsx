@@ -5,8 +5,9 @@ import { useUser } from "@clerk/nextjs";
 import MessageCrafter from "@/components/MessageCrafter";
 import { Lead } from "@/components/LeadScraper";
 import { hasFeature } from "@/lib/feature-access";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Settings2 } from "lucide-react";
 import Link from "next/link";
+import ToneSelectionModal, { ToneData } from "@/components/ToneSelectionModal";
 
 export default function CraftMessagesPage() {
   const { user } = useUser();
@@ -21,6 +22,8 @@ export default function CraftMessagesPage() {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showToneModal, setShowToneModal] = useState(false);
+  const [toneData, setToneData] = useState<ToneData | null>(null);
 
   const canAccess = hasFeature(userPlan, userEmail, "messageCrafting");
 
@@ -31,8 +34,7 @@ export default function CraftMessagesPage() {
       try {
         const lead = JSON.parse(savedLead);
         setSelectedLead(lead);
-        // Auto-craft messages for this lead
-        craftMessages(lead);
+        setShowToneModal(true);
         // Clear from session so page refresh requires selecting again
         sessionStorage.removeItem('selectedLeadForCraft');
       } catch {
@@ -41,14 +43,25 @@ export default function CraftMessagesPage() {
     }
   }, []);
 
-  const craftMessages = async (lead: Lead) => {
+  const handleToneSubmit = (data: ToneData) => {
+    setToneData(data);
+    setShowToneModal(false);
+    if (selectedLead) {
+      craftMessages(selectedLead, data);
+    }
+  };
+
+  const craftMessages = async (lead: Lead, tone: ToneData) => {
     setIsLoading(true);
     setError(null);
     try {
       const response = await fetch("/api/craft-messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lead }),
+        body: JSON.stringify({ 
+          lead,
+          ...tone
+        }),
       });
 
       const data = await response.json();
@@ -61,6 +74,36 @@ export default function CraftMessagesPage() {
     } catch (err) {
       setError('Failed to craft messages. Please try again.');
       console.error('Error crafting messages:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRegenerateOne = async (platform: "whatsapp" | "email" | "social") => {
+    if (!selectedLead || !toneData) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/craft-messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          lead: selectedLead,
+          ...toneData,
+          platformType: platform
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.message && messages) {
+        setMessages({
+          ...messages,
+          [platform]: data.message
+        });
+      }
+    } catch (err) {
+      console.error(`Error regenerating ${platform} message:`, err);
     } finally {
       setIsLoading(false);
     }
@@ -102,33 +145,23 @@ export default function CraftMessagesPage() {
     );
   }
 
-  // Show error if message crafting failed
-  if (error) {
-    return (
-      <div className="p-8">
-        <Link href="/dashboard/lead-scraper" className="flex items-center gap-2 text-blue-600 hover:underline mb-8">
+  return (
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="flex items-center justify-between mb-6">
+        <Link href="/dashboard/lead-scraper" className="flex items-center gap-2 text-blue-600 hover:underline">
           <ArrowLeft size={18} /> Back to Lead Scraper
         </Link>
         
-        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-8 text-center">
-          <h2 className="text-xl font-bold text-red-900 mb-2">Error Crafting Messages</h2>
-          <p className="text-red-700 mb-4">{error}</p>
-          <Link 
-            href="/dashboard/lead-scraper"
-            className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        {messages && !isLoading && (
+          <button 
+            onClick={() => setShowToneModal(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition shadow-sm"
           >
-            Try Another Lead
-          </Link>
-        </div>
+            <Settings2 size={16} />
+            Change Tone & Style
+          </button>
+        )}
       </div>
-    );
-  }
-
-  return (
-    <div className="max-w-4xl mx-auto p-6">
-      <Link href="/dashboard/lead-scraper" className="flex items-center gap-2 text-blue-600 hover:underline mb-6">
-        <ArrowLeft size={18} /> Back to Lead Scraper
-      </Link>
 
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Craft Messages</h1>
@@ -137,36 +170,35 @@ export default function CraftMessagesPage() {
         </p>
       </div>
 
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center justify-between">
+          <p>{error}</p>
+          <button onClick={() => setError(null)} className="text-red-900 font-bold">×</button>
+        </div>
+      )}
+
       {/* Lead Details Card */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200 mb-8">
-        <h3 className="text-lg font-bold mb-4">Lead Details</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100 mb-8 shadow-sm">
+        <h3 className="text-lg font-bold mb-4 text-indigo-900 flex items-center gap-2">
+          Lead Context
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-y-4 gap-x-6 text-sm">
           <div>
-            <span className="font-semibold">Name:</span> {selectedLead.firstName} {selectedLead.lastName}
+            <span className="text-gray-500 block">Name</span>
+            <span className="font-semibold">{selectedLead.firstName} {selectedLead.lastName}</span>
           </div>
           <div>
-            <span className="font-semibold">Company:</span> {selectedLead.company}
+            <span className="text-gray-500 block">Company</span>
+            <span className="font-semibold">{selectedLead.company}</span>
           </div>
           <div>
-            <span className="font-semibold">Title:</span> {selectedLead.title}
+            <span className="text-gray-500 block">Role</span>
+            <span className="font-semibold truncate block" title={selectedLead.title}>{selectedLead.title}</span>
           </div>
           <div>
-            <span className="font-semibold">Location:</span> {selectedLead.location}
+            <span className="text-gray-500 block">Industry</span>
+            <span className="font-semibold">{selectedLead.industry}</span>
           </div>
-          <div>
-            <span className="font-semibold">Email:</span> {selectedLead.email}
-          </div>
-          <div>
-            <span className="font-semibold">Industry:</span> {selectedLead.industry}
-          </div>
-          <div>
-            <span className="font-semibold">Company Size:</span> {selectedLead.companySize}
-          </div>
-          {selectedLead.matchQualityScore && (
-            <div>
-              <span className="font-semibold">Match Score:</span> {selectedLead.matchQualityScore}%
-            </div>
-          )}
         </div>
       </div>
 
@@ -175,7 +207,16 @@ export default function CraftMessagesPage() {
         lead={selectedLead}
         messages={messages}
         isLoading={isLoading}
+        onRegenerate={handleRegenerateOne}
+        onEdit={() => setShowToneModal(true)}
       />
+
+      {showToneModal && (
+        <ToneSelectionModal 
+          onProceed={handleToneSubmit}
+          initialData={toneData || undefined}
+        />
+      )}
     </div>
   );
 }
