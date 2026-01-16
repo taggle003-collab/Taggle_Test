@@ -2,8 +2,8 @@
 
 import React from "react";
 import { Copy, Check, Trash2, Building2, MapPin, Users, Briefcase, ExternalLink, MessageSquare } from "lucide-react";
-import { useRouter } from "next/navigation";
 import type { Lead } from "./LeadScraper";
+import { useCraftMessages } from "@/lib/contexts/CraftMessagesContext";
 
 interface LeadCardProps {
   lead: Lead;
@@ -15,13 +15,11 @@ interface LeadCardProps {
 }
 
 const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEmail }: LeadCardProps) => {
-  const router = useRouter();
+  const { openCraftMessages } = useCraftMessages();
 
   const handleCraftMessage = () => {
-    // Store the lead in sessionStorage so Craft Messages page can access it
-    sessionStorage.setItem('selectedLeadForCraft', JSON.stringify(lead));
-    // Navigate to craft messages
-    router.push('/dashboard/craft-messages');
+    // Open the Craft Messages modal with this lead
+    openCraftMessages(lead);
   };
 
   const getSourceBadge = (source: string) => {

@@ -61,7 +61,7 @@ export async function POST(req: Request) {
         model: "deepseek/deepseek-chat",
         messages: [{
           role: "system",
-          content: "You are an expert B2B sales copywriter. You specialize in crafting personalized outreach messages that match a specific tone and style. Always provide clean text without any markdown formatting, bolding (**), or em dashes (—)."
+          content: "You are an expert B2B sales copywriter. Your goal is to MATCH the user's provided sample lines EXACTLY in terms of style, length, and vocabulary. Always provide clean, plain text without any markdown formatting, bolding (**), or em dashes (—). Use only standard punctuation."
         }, {
           role: "user",
           content: prompt,
@@ -128,12 +128,13 @@ Desired Style: ${style || "Direct and value-focused"}
 User's Sample Style: ${sampleLines || "N/A"}
 Additional Talking Points: ${talkingPoints || "N/A"}
 
-IMPORTANT STYLE GUIDELINES:
-1. MATCH the User's Sample Style exactly.
-2. NO markdown formatting.
-3. NO bold text (no **).
-4. NO em dashes (use commas or hyphens instead).
-5. Clean, plain text only.
+CRITICAL STYLE INSTRUCTIONS:
+1. MATCH the "User's Sample Style" provided above EXACTLY. If they are brief, you be brief. If they are casual, you be casual.
+2. ADHERE to the "Desired Tone" and "Desired Style" descriptions.
+3. NO markdown formatting of any kind.
+4. NO bold text (absolutely no **).
+5. NO em dashes (use commas, periods, or hyphens).
+6. Provide CLEAN, plain text only.
 `;
 
   if (platformType) {

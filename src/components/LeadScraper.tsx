@@ -6,9 +6,10 @@ import ICPForm, { ICPCriteria } from "./ICPForm";
 import LeadCard from "./LeadCard";
 import Pagination from "./Pagination";
 import UpgradePrompt from "./UpgradePrompt";
-import { Mail, Search, CheckCircle2, AlertCircle, Loader2, Copy, Trash2, Check, ArrowUpDown, TrendingUp } from "lucide-react";
+import { Mail, Search, CheckCircle2, AlertCircle, Loader2, Copy, Trash2, Check, ArrowUpDown, TrendingUp, MessageSquare } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { hasFeature, getLeadsLimit, getFeatureLevel, getICPMatchingLevel } from "@/lib/feature-access";
+import { useCraftMessages } from "@/lib/contexts/CraftMessagesContext";
 
 export interface Lead {
   id: string;
@@ -48,6 +49,7 @@ type SortOrder = "asc" | "desc";
 
 const LeadScraper = () => {
   const { user } = useUser();
+  const { openCraftMessages } = useCraftMessages();
   const userPlan = user?.unsafeMetadata?.plan as "lite" | "solo" | "pro" | undefined;
   const userEmail = user?.emailAddresses[0]?.emailAddress;
 
@@ -648,13 +650,22 @@ const LeadScraper = () => {
                       </td>
                     )}
                     <td className="px-4 py-4">
-                      <button
-                        onClick={() => handleDeleteLead(lead.id)}
-                        className="text-gray-500 hover:text-red-500 transition-colors"
-                        title="Remove lead"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openCraftMessages(lead)}
+                          className="text-gray-500 hover:text-blue-500 transition-colors"
+                          title="Craft message"
+                        >
+                          <MessageSquare size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteLead(lead.id)}
+                          className="text-gray-500 hover:text-red-500 transition-colors"
+                          title="Remove lead"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
