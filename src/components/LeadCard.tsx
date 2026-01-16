@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Copy, Check, Trash2, Building2, MapPin, Users, Briefcase, ExternalLink } from "lucide-react";
+import { Copy, Check, Trash2, Building2, MapPin, Users, Briefcase, ExternalLink, MessageSquare } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { Lead } from "./LeadScraper";
 
 interface LeadCardProps {
@@ -14,6 +15,15 @@ interface LeadCardProps {
 }
 
 const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEmail }: LeadCardProps) => {
+  const router = useRouter();
+
+  const handleCraftMessage = () => {
+    // Store the lead in sessionStorage so Craft Messages page can access it
+    sessionStorage.setItem('selectedLeadForCraft', JSON.stringify(lead));
+    // Navigate to craft messages
+    router.push('/dashboard/craft-messages');
+  };
+
   const getSourceBadge = (source: string) => {
     const badges: Record<string, { color: string; label: string }> = {
       reddit: { color: "bg-orange-900/30 text-orange-400 border-orange-900/50", label: "Reddit" },
@@ -175,6 +185,17 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
             </div>
           )}
         </div>
+      </div>
+
+      {/* Craft Message Button */}
+      <div className="pt-3 border-t border-gray-800">
+        <button
+          onClick={handleCraftMessage}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-semibold transition-all shadow-lg shadow-blue-900/30 hover:shadow-blue-900/50"
+        >
+          <MessageSquare size={16} />
+          Craft Message
+        </button>
       </div>
     </div>
   );
