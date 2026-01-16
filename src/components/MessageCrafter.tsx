@@ -2,7 +2,16 @@
 
 import React from "react";
 import { Lead } from "./LeadScraper";
-import { MessageCircle, Mail, Share2, Copy, Check, Loader2 } from "lucide-react";
+import { 
+  MessageCircle, 
+  Mail, 
+  Share2, 
+  Copy, 
+  Check, 
+  Loader2, 
+  RotateCw,
+  Edit3
+} from "lucide-react";
 
 interface Message {
   whatsapp: string;
@@ -14,9 +23,17 @@ interface MessageCrafterProps {
   lead: Lead;
   messages: Message | null;
   isLoading: boolean;
+  onRegenerate: (platform: "whatsapp" | "email" | "social") => void;
+  onEdit: () => void;
 }
 
-export default function MessageCrafter({ lead, messages, isLoading }: MessageCrafterProps) {
+export default function MessageCrafter({ 
+  lead, 
+  messages, 
+  isLoading, 
+  onRegenerate,
+  onEdit
+}: MessageCrafterProps) {
   const [copied, setCopied] = React.useState<string | null>(null);
 
   const copyToClipboard = (text: string, type: string) => {
@@ -25,114 +42,169 @@ export default function MessageCrafter({ lead, messages, isLoading }: MessageCra
     setTimeout(() => setCopied(null), 2000);
   };
 
+  if (isLoading && !messages) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+        <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
+        <h3 className="text-xl font-bold text-gray-900">Crafting your messages...</h3>
+        <p className="text-gray-500 mt-2">Our AI is matching your tone and style preference.</p>
+      </div>
+    );
+  }
+
+  if (!messages) {
+    return (
+      <div className="bg-white rounded-2xl p-12 text-center border-2 border-dashed border-gray-200 shadow-sm">
+        <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Edit3 className="text-blue-600" size={32} />
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">Ready to craft messages?</h3>
+        <p className="text-gray-500 max-w-sm mx-auto mb-8">
+          Set your preferred tone and style to generate personalized outreach for {lead.firstName}.
+        </p>
+        <button 
+          onClick={onEdit}
+          className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-200"
+        >
+          Set Tone & Style
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
-        <h3 className="text-lg font-bold mb-4">Lead Details</h3>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className="font-semibold">Name:</span> {lead.firstName} {lead.lastName}
+    <div className="space-y-8 pb-12">
+      {/* WhatsApp Card */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group hover:shadow-md transition-shadow">
+        <div className="bg-emerald-500 px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-white">
+            <MessageCircle size={20} />
+            <span className="font-bold uppercase tracking-wider text-xs">WhatsApp Message</span>
           </div>
-          <div>
-            <span className="font-semibold">Company:</span> {lead.company}
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => onRegenerate("whatsapp")}
+              disabled={isLoading}
+              className="p-1.5 bg-white/20 rounded-lg text-white hover:bg-white/30 transition disabled:opacity-50"
+              title="Regenerate WhatsApp message"
+            >
+              <RotateCw size={16} className={isLoading ? "animate-spin" : ""} />
+            </button>
           </div>
-          <div>
-            <span className="font-semibold">Title:</span> {lead.title}
+        </div>
+        <div className="p-6">
+          <p className="text-gray-700 leading-relaxed whitespace-pre-wrap mb-6 text-lg">
+            {messages.whatsapp}
+          </p>
+          <div className="flex items-center justify-between border-t border-gray-50 pt-6">
+            <button
+              onClick={() => copyToClipboard(messages.whatsapp, "whatsapp")}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${
+                copied === "whatsapp" 
+                  ? "bg-emerald-100 text-emerald-700" 
+                  : "bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-100"
+              }`}
+            >
+              {copied === "whatsapp" ? (
+                <><Check size={18} /> Copied!</>
+              ) : (
+                <><Copy size={18} /> Copy Message</>
+              )}
+            </button>
+            <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded">
+              Casual / Mobile
+            </span>
           </div>
-          <div>
-            <span className="font-semibold">Location:</span> {lead.location}
-          </div>
-          <div>
-            <span className="font-semibold">Email:</span> {lead.email}
-          </div>
-          <div>
-            <span className="font-semibold">Industry:</span> {lead.industry}
-          </div>
-          <div>
-            <span className="font-semibold">Company Size:</span> {lead.companySize}
-          </div>
-          {lead.matchQualityScore && (
-            <div>
-              <span className="font-semibold">Match Score:</span> {lead.matchQualityScore}%
-            </div>
-          )}
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="animate-spin mr-2" size={24} />
-          <span>Crafting personalized messages...</span>
-        </div>
-      ) : messages ? (
-        <div className="space-y-4">
-          <div className="border border-green-200 bg-green-50 rounded-lg p-6">
-            <div className="flex items-center mb-4">
-              <MessageCircle className="text-green-600 mr-2" size={20} />
-              <h4 className="font-bold text-green-900">WhatsApp Message</h4>
-            </div>
-            <p className="text-gray-800 mb-4 leading-relaxed whitespace-pre-wrap">
-              {messages.whatsapp}
-            </p>
-            <button
-              onClick={() => copyToClipboard(messages.whatsapp, "whatsapp")}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+      {/* Email Card */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group hover:shadow-md transition-shadow">
+        <div className="bg-blue-600 px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-white">
+            <Mail size={20} />
+            <span className="font-bold uppercase tracking-wider text-xs">Email Outreach</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => onRegenerate("email")}
+              disabled={isLoading}
+              className="p-1.5 bg-white/20 rounded-lg text-white hover:bg-white/30 transition disabled:opacity-50"
+              title="Regenerate Email message"
             >
-              {copied === "whatsapp" ? (
-                <><Check size={16} className="mr-2" /> Copied!</>
-              ) : (
-                <><Copy size={16} className="mr-2" /> Copy</>
-              )}
+              <RotateCw size={16} className={isLoading ? "animate-spin" : ""} />
             </button>
           </div>
-
-          <div className="border border-blue-200 bg-blue-50 rounded-lg p-6">
-            <div className="flex items-center mb-4">
-              <Mail className="text-blue-600 mr-2" size={20} />
-              <h4 className="font-bold text-blue-900">Email Message</h4>
-            </div>
-            <p className="text-gray-800 mb-4 leading-relaxed whitespace-pre-wrap">
-              {messages.email}
-            </p>
+        </div>
+        <div className="p-6">
+          <p className="text-gray-700 leading-relaxed whitespace-pre-wrap mb-6 text-lg">
+            {messages.email}
+          </p>
+          <div className="flex items-center justify-between border-t border-gray-50 pt-6">
             <button
               onClick={() => copyToClipboard(messages.email, "email")}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${
+                copied === "email" 
+                  ? "bg-blue-100 text-blue-700" 
+                  : "bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-100"
+              }`}
             >
               {copied === "email" ? (
-                <><Check size={16} className="mr-2" /> Copied!</>
+                <><Check size={18} /> Copied!</>
               ) : (
-                <><Copy size={16} className="mr-2" /> Copy</>
+                <><Copy size={18} /> Copy Email</>
               )}
             </button>
+            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-1 rounded">
+              Professional / Structured
+            </span>
           </div>
+        </div>
+      </div>
 
-          <div className="border border-purple-200 bg-purple-50 rounded-lg p-6">
-            <div className="flex items-center mb-4">
-              <Share2 className="text-purple-600 mr-2" size={20} />
-              <h4 className="font-bold text-purple-900">LinkedIn/Social Media</h4>
-            </div>
-            <p className="text-gray-800 mb-4 leading-relaxed whitespace-pre-wrap">
-              {messages.social}
-            </p>
+      {/* LinkedIn/Social Card */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group hover:shadow-md transition-shadow">
+        <div className="bg-purple-600 px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-white">
+            <Share2 size={20} />
+            <span className="font-bold uppercase tracking-wider text-xs">LinkedIn / Social</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => onRegenerate("social")}
+              disabled={isLoading}
+              className="p-1.5 bg-white/20 rounded-lg text-white hover:bg-white/30 transition disabled:opacity-50"
+              title="Regenerate Social message"
+            >
+              <RotateCw size={16} className={isLoading ? "animate-spin" : ""} />
+            </button>
+          </div>
+        </div>
+        <div className="p-6">
+          <p className="text-gray-700 leading-relaxed whitespace-pre-wrap mb-6 text-lg">
+            {messages.social}
+          </p>
+          <div className="flex items-center justify-between border-t border-gray-50 pt-6">
             <button
               onClick={() => copyToClipboard(messages.social, "social")}
-              className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${
+                copied === "social" 
+                  ? "bg-purple-100 text-purple-700" 
+                  : "bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-100"
+              }`}
             >
               {copied === "social" ? (
-                <><Check size={16} className="mr-2" /> Copied!</>
+                <><Check size={18} /> Copied!</>
               ) : (
-                <><Copy size={16} className="mr-2" /> Copy</>
+                <><Copy size={18} /> Copy for LinkedIn</>
               )}
             </button>
+            <span className="text-[10px] font-bold text-purple-600 uppercase tracking-widest bg-purple-50 px-2 py-1 rounded">
+              Networking / Brief
+            </span>
           </div>
         </div>
-      ) : (
-        <div className="bg-gray-50 rounded-lg p-8 text-center border-2 border-dashed border-gray-300">
-          <p className="text-gray-500">
-            Messages will appear here after you select a lead
-          </p>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
