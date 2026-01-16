@@ -21,6 +21,7 @@ import {
 import { SignOutButton } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { hasFeature } from "@/lib/feature-access";
+import { useCraftMessages } from "@/lib/contexts/CraftMessagesContext";
 
 interface SidebarProps {
   isAdmin?: boolean;
@@ -31,8 +32,14 @@ interface SidebarProps {
 const Sidebar = ({ isAdmin, userPlan, userEmail }: SidebarProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const { openCraftMessages } = useCraftMessages();
 
-  const menuItems = [
+  const menuItems: {
+    name: string;
+    icon: React.ElementType;
+    href?: string;
+    onClick?: () => void;
+  }[] = [
     {
       name: "Home",
       icon: Home,
@@ -57,7 +64,7 @@ const Sidebar = ({ isAdmin, userPlan, userEmail }: SidebarProps) => {
     menuItems.push({
       name: "Craft Messages",
       icon: PenTool,
-      href: "/dashboard/craft-messages",
+      onClick: () => openCraftMessages(),
     });
   }
 
@@ -142,27 +149,51 @@ const Sidebar = ({ isAdmin, userPlan, userEmail }: SidebarProps) => {
 
           <ul className="space-y-2 font-medium flex-1">
             {menuItems.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = item.href ? pathname === item.href : false;
+              const content = (
+                <>
+                  <item.icon
+                    className={cn(
+                      "w-5 h-5 transition duration-75",
+                      isActive ? "text-white" : "text-gray-400 group-hover:text-[#FF6B35]"
+                    )}
+                  />
+                  <span className="ms-3">{item.name}</span>
+                </>
+              );
+
+              const className = cn(
+                "w-full flex items-center p-3 rounded-lg group transition-colors text-left",
+                isActive
+                  ? "bg-[#FF6B35] text-white"
+                  : "text-gray-400 hover:bg-[#FF6B35]/10 hover:text-[#FF6B35]"
+              );
+
+              if (item.href) {
+                return (
+                  <li key={item.name}>
+                    <Link
+                      href={item.href}
+                      onClick={() => setIsOpen(false)}
+                      className={className}
+                    >
+                      {content}
+                    </Link>
+                  </li>
+                );
+              }
+
               return (
                 <li key={item.name}>
-                  <Link
-                    href={item.href}
-                    onClick={() => setIsOpen(false)}
-                    className={cn(
-                      "flex items-center p-3 rounded-lg group transition-colors",
-                      isActive
-                        ? "bg-[#FF6B35] text-white"
-                        : "text-gray-400 hover:bg-[#FF6B35]/10 hover:text-[#FF6B35]"
-                    )}
+                  <button
+                    onClick={() => {
+                      item.onClick?.();
+                      setIsOpen(false);
+                    }}
+                    className={className}
                   >
-                    <item.icon
-                      className={cn(
-                        "w-5 h-5 transition duration-75",
-                        isActive ? "text-white" : "text-gray-400 group-hover:text-[#FF6B35]"
-                      )}
-                    />
-                    <span className="ms-3">{item.name}</span>
-                  </Link>
+                    {content}
+                  </button>
                 </li>
               );
             })}
