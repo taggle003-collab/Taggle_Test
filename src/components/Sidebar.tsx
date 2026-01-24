@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Home,
   Contact,
+  Users,
   BarChart3,
   Zap,
   PenTool
@@ -56,9 +57,15 @@ const Sidebar = ({ isAdmin, userPlan, userEmail }: SidebarProps) => {
     menuItems.push({
       name: "Lead Scraper",
       icon: Search,
-      href: "/dashboard/leads",
+      href: "/dashboard/leads/scraper",
     });
   }
+
+  menuItems.push({
+    name: "My Leads",
+    icon: Users,
+    href: "/dashboard/leads",
+  });
 
   if (hasFeature(userPlan, userEmail, "messageCrafting")) {
     menuItems.push({
