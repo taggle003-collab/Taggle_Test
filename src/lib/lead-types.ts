@@ -12,6 +12,23 @@ export interface Lead {
   phone?: string;
   openHours?: string;
   socialMedia?: string;
+  // Optional fields from scrapers
+  source?:
+    | "gemini"
+    | "llm"
+    | "kaggle"
+    | "reddit"
+    | "twitter"
+    | "youtube"
+    | "google"
+    | "instagram"
+    | "facebook"
+    | "discord";
+  sourceUrl?: string;
+  matchedCriteria?: string[];
+  matchQualityScore?: number;
+  fundingStage?: string;
+  annualRevenue?: string;
 }
 
 export interface LeadSearchResult {
