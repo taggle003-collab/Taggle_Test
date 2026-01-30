@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import ICPForm, { ICPCriteria } from "./ICPForm";
+import LeadFilterBar from "./LeadFilterBar";
 import LeadCard from "./LeadCard";
 import Pagination from "./Pagination";
 import UpgradePrompt from "./UpgradePrompt";
@@ -33,6 +33,8 @@ export interface Lead {
   matchedCriteria?: string[];
   source?: string;
   sourceUrl?: string;
+  openHours?: string;
+  socialMedia?: string;
 }
 
 interface PaginationInfo {
@@ -58,188 +60,129 @@ const LeadScraper = () => {
   const crmLevel = getFeatureLevel(userPlan, userEmail, "crmIntegrations");
   const hasNotifications = hasFeature(userPlan, userEmail, "realtimeNotifications");
   const analyticsLevel = getFeatureLevel(userPlan, userEmail, "advancedAnalytics");
-  const icpMatchingLevel = getICPMatchingLevel(userPlan, userEmail);
 
+  const [country, setCountry] = useState("USA");
+  const [category, setCategory] = useState("Tech");
+  
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [displayedLeads, setDisplayedLeads] = useState<Lead[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [lastCriteria, setLastCriteria] = useState<ICPCriteria | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
-  const [searchesRemaining, setSearchesRemaining] = useState<number | null>(null);
-  const [rateLimitReset, setRateLimitReset] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState<string>("");
 
-  React.useEffect(() => {
-    if (!rateLimitReset) return;
-
-    const timer = setInterval(() => {
-      const now = new Date();
-      const reset = new Date(rateLimitReset);
-      const diff = reset.getTime() - now.getTime();
-
-      if (diff <= 0) {
-        setRateLimitReset(null);
-        setSearchesRemaining(3);
-        setCountdown("");
-        clearInterval(timer);
-        return;
-      }
-
-      const minutes = Math.floor(diff / 60000);
-      const seconds = Math.floor((diff % 60000) / 1000);
-      setCountdown(`${minutes} minutes ${seconds} seconds`);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [rateLimitReset]);
-
-  const handleScrape = async (criteria: ICPCriteria) => {
+  const fetchLeads = async (page: number = 1) => {
     setIsLoading(true);
     setMessage(null);
-    setLastCriteria(criteria);
     setSelectedLeads(new Set());
-    setCurrentPage(1);
-    setSearchTerm("");
-
+    
     try {
-      const response = await fetch("/api/scrape-leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...criteria, page: 1, limit: 10 }),
+      const queryParams = new URLSearchParams({
+        country,
+        category,
+        page: page.toString(),
       });
 
-      // Handle rate limit errors separately
-      if (response.status === 429) {
-        const data = await response.json();
-        setRateLimitReset(data.resetTime);
-        setSearchesRemaining(0);
-        setMessage({ type: "error", text: data.message || "Rate limit exceeded. Please wait..." });
-        setIsLoading(false);
-        return;
-      }
-
-      // IMPORTANT: Check if response is not OK BEFORE using data
+      const response = await fetch(`/api/leads/search?${queryParams.toString()}`);
+      
       if (!response.ok) {
-        let errorMessage = "Something went wrong while scraping leads.";
-        try {
-          const errorData = await response.json();
-          // Use the error message from the API if available
-          errorMessage = errorData.message || errorData.error || errorData.details || errorMessage;
-          console.error("[SCRAPE_LEADS_ERROR]", {
-            status: response.status,
-            statusText: response.statusText,
-            errorData,
-          });
-        } catch {
-          // If response is not JSON, show status code
-          console.error("[SCRAPE_LEADS_ERROR]", {
-            status: response.status,
-            statusText: response.statusText,
-            body: await response.text(),
-          });
-        }
-        setMessage({ type: "error", text: errorMessage });
-        setIsLoading(false);
-        return;
+        throw new Error("Failed to fetch leads");
       }
 
       const data = await response.json();
 
-      setSearchesRemaining(data.searchesRemaining);
-      if (data.rateLimitReset) setRateLimitReset(data.rateLimitReset);
-
-      if (data.leads.length === 0) {
-        setMessage({ type: "error", text: "No leads found matching your criteria. Please try different filters." });
-        setAllLeads([]);
-        setDisplayedLeads([]);
-        setPagination(null);
-      } else {
+      if (data.success) {
         setAllLeads(data.leads);
-        localStorage.setItem("leads", JSON.stringify(data.leads));
-        const firstPageLeads = data.leads.slice(0, itemsPerPage);
-        setDisplayedLeads(firstPageLeads);
-
-        const totalPages = Math.ceil(data.leads.length / itemsPerPage);
+        setDisplayedLeads(data.leads);
+        setCurrentPage(data.page);
+        
         setPagination({
-          page: 1,
-          limit: itemsPerPage,
-          total: data.leads.length,
-          pages: totalPages,
-          hasNext: totalPages > 1,
-          hasPrev: false,
+          page: data.page,
+          limit: 10,
+          total: data.totalCount,
+          pages: data.totalPages,
+          hasNext: data.page < data.totalPages,
+          hasPrev: data.page > 1
         });
 
-        setMessage({
-          type: "success",
-          text: `Found ${data.leads.length} real leads from multiple sources!`
-        });
+        if (data.leads.length === 0) {
+           setMessage({ type: "error", text: `No leads found for ${category} in ${country}. Try different filters.` });
+        }
+      } else {
+        throw new Error(data.error || "Failed to fetch leads");
       }
     } catch (error) {
-      console.error("[SCRAPE_LEADS_EXCEPTION]", error);
-      const errorMsg = error instanceof Error ? error.message : "Something went wrong while scraping leads.";
-      setMessage({
-        type: "error",
-        text: errorMsg,
-      });
+      console.error("Error fetching leads:", error);
+      setMessage({ type: "error", text: "Something went wrong while fetching leads." });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-    const startIndex = (newPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const filteredAndSorted = getSortedLeads(getFilteredLeads(allLeads));
-    setDisplayedLeads(filteredAndSorted.slice(startIndex, endIndex));
-    setSelectedLeads(new Set()); // Clear selection when changing pages
-    
-    // Update pagination info
-    if (pagination) {
-      const totalPages = Math.ceil(filteredAndSorted.length / itemsPerPage);
-      setPagination({
-        ...pagination,
-        page: newPage,
-        pages: totalPages,
-        hasNext: newPage < totalPages,
-        hasPrev: newPage > 1,
-      });
-    }
+  const handleSearch = () => {
+    setCurrentPage(1);
+    fetchLeads(1);
   };
 
-  const handleItemsPerPageChange = (newLimit: number) => {
-    setItemsPerPage(newLimit);
-    setCurrentPage(1);
-    const filteredAndSorted = getSortedLeads(getFilteredLeads(allLeads));
-    setDisplayedLeads(filteredAndSorted.slice(0, newLimit));
-    
-    // Update pagination info
-    if (pagination) {
-      const totalPages = Math.ceil(filteredAndSorted.length / newLimit);
-      setPagination({
-        ...pagination,
-        page: 1,
-        limit: newLimit,
-        pages: totalPages,
-        hasNext: totalPages > 1,
-        hasPrev: false,
-      });
+  const handlePageChange = (newPage: number) => {
+    fetchLeads(newPage);
+  };
+
+  // Sort handler - Client side sorting for the current page
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
     }
+    
+    // We only sort displayed leads since pagination is server-side now
+    const sorted = sortLeads([...displayedLeads], field, sortField === field ? (sortOrder === "asc" ? "desc" : "asc") : "asc");
+    setDisplayedLeads(sorted);
+  };
+
+  const sortLeads = (leads: Lead[], field: SortField, order: SortOrder) => {
+    return leads.sort((a, b) => {
+      let comparison = 0;
+      switch (field) {
+        case "name":
+          comparison = `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+          break;
+        case "email":
+          comparison = (a.email || "").localeCompare(b.email || "");
+          break;
+        case "company":
+          comparison = (a.company || "").localeCompare(b.company || "");
+          break;
+        case "title":
+          comparison = (a.title || "").localeCompare(b.title || "");
+          break;
+        case "location":
+          comparison = (a.location || "").localeCompare(b.location || "");
+          break;
+        case "size":
+          comparison = (a.companySize || "").localeCompare(b.companySize || "");
+          break;
+        case "industry":
+          comparison = (a.industry || "").localeCompare(b.industry || "");
+          break;
+      }
+      return order === "asc" ? comparison : -comparison;
+    });
   };
 
   const handleSendEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || allLeads.length === 0) return;
+    if (!email || displayedLeads.length === 0) return;
 
     setIsSending(true);
     setMessage(null);
@@ -254,7 +197,7 @@ const LeadScraper = () => {
         body: JSON.stringify({
           email,
           leads: leadsToSend,
-          criteria: lastCriteria,
+          criteria: { industry: category, location: country }, // Mock criteria
           page: currentPage,
           total: pagination?.total || leadsToSend.length,
         }),
@@ -293,30 +236,14 @@ const LeadScraper = () => {
   };
 
   const handleDeleteLead = (id: string) => {
-    const newAllLeads = allLeads.filter(l => l.id !== id);
-    setAllLeads(newAllLeads);
-    localStorage.setItem("leads", JSON.stringify(newAllLeads));
-
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const filteredAndSorted = getSortedLeads(getFilteredLeads(newAllLeads));
-    setDisplayedLeads(filteredAndSorted.slice(startIndex, endIndex));
-
+    // Just remove from view for now, as we can't delete from shared DB
+    const newDisplayed = displayedLeads.filter(l => l.id !== id);
+    setDisplayedLeads(newDisplayed);
     setSelectedLeads(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(id);
-      return newSet;
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
     });
-
-    if (pagination) {
-      const totalPages = Math.ceil(filteredAndSorted.length / itemsPerPage);
-      setPagination({
-        ...pagination,
-        total: filteredAndSorted.length,
-        pages: totalPages,
-        hasNext: currentPage < totalPages,
-      });
-    }
   };
 
   const handleCopyEmail = async (emailToCopy: string) => {
@@ -327,86 +254,6 @@ const LeadScraper = () => {
     } catch (err) {
       console.error("Failed to copy email:", err);
     }
-  };
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(prev => prev === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortOrder("asc");
-    }
-    
-    // Re-apply sorting and update displayed leads
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const filteredAndSorted = getSortedLeads(getFilteredLeads(allLeads));
-    setDisplayedLeads(filteredAndSorted.slice(startIndex, endIndex));
-  };
-
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-    
-    const filteredAndSorted = getSortedLeads(getFilteredLeads(allLeads, value));
-    setDisplayedLeads(filteredAndSorted.slice(0, itemsPerPage));
-    
-    // Update pagination
-    if (pagination) {
-      const totalPages = Math.ceil(filteredAndSorted.length / itemsPerPage);
-      setPagination({
-        ...pagination,
-        page: 1,
-        total: filteredAndSorted.length,
-        pages: totalPages,
-        hasNext: totalPages > 1,
-        hasPrev: false,
-      });
-    }
-  };
-
-  const getFilteredLeads = (leadsToFilter: Lead[], search?: string) => {
-    const searchValue = search !== undefined ? search : searchTerm;
-    if (!searchValue) return leadsToFilter;
-    
-    return leadsToFilter.filter(lead => 
-      `${lead.firstName} ${lead.lastName}`.toLowerCase().includes(searchValue.toLowerCase()) ||
-      lead.company.toLowerCase().includes(searchValue.toLowerCase()) ||
-      lead.email.toLowerCase().includes(searchValue.toLowerCase()) ||
-      lead.title.toLowerCase().includes(searchValue.toLowerCase())
-    );
-  };
-
-  const getSortedLeads = (leadsToSort: Lead[]) => {
-    return [...leadsToSort].sort((a, b) => {
-      let comparison = 0;
-      
-      switch (sortField) {
-        case "name":
-          comparison = `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
-          break;
-        case "email":
-          comparison = a.email.localeCompare(b.email);
-          break;
-        case "company":
-          comparison = a.company.localeCompare(b.company);
-          break;
-        case "title":
-          comparison = a.title.localeCompare(b.title);
-          break;
-        case "location":
-          comparison = a.location.localeCompare(b.location);
-          break;
-        case "size":
-          comparison = a.companySize.localeCompare(b.companySize);
-          break;
-        case "industry":
-          comparison = a.industry.localeCompare(b.industry);
-          break;
-      }
-
-      return sortOrder === "asc" ? comparison : -comparison;
-    });
   };
 
   if (!canScrape) {
@@ -426,23 +273,24 @@ const LeadScraper = () => {
       <div className="bg-[#1a1a1a] p-4 sm:p-6 lg:p-8 rounded-2xl border border-gray-800 shadow-xl">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-2">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white">Define Your Ideal Customer Profile</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Find Your Leads</h2>
             <div className="text-xs text-gray-500 mt-1">
-              Using {icpMatchingLevel === "basic" ? "Basic" : "Advanced"} ICP Matching
+              Search through our database of verified leads
             </div>
           </div>
           <div className="text-sm text-gray-400">
             Leads Limit: <span className="text-[#FF6B35] font-semibold">{leadsLimit >= 999999 ? "Unlimited" : leadsLimit}</span>/month
           </div>
         </div>
-        <ICPForm
-          onScrape={handleScrape}
+        
+        <LeadFilterBar 
+          country={country}
+          setCountry={setCountry}
+          category={category}
+          setCategory={setCategory}
+          onSearch={handleSearch}
           isLoading={isLoading}
-          searchesRemaining={searchesRemaining}
-          rateLimitReset={rateLimitReset}
-          countdown={countdown}
-          userPlan={userPlan}
-          userEmail={userEmail}
+          totalCount={pagination?.total}
         />
       </div>
 
@@ -455,22 +303,22 @@ const LeadScraper = () => {
         </div>
       )}
 
-      {allLeads.length === 0 && !isLoading && (
+      {displayedLeads.length === 0 && !isLoading && !message && (
         <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 p-12 text-center">
           <Search className="mx-auto mb-4 text-gray-600" size={48} />
-          <h3 className="text-xl font-semibold text-white mb-2">No Leads Yet</h3>
-          <p className="text-gray-400">Define your ICP criteria above and click &quot;Scrape Leads&quot; to get started</p>
+          <h3 className="text-xl font-semibold text-white mb-2">Start Searching</h3>
+          <p className="text-gray-400">Select your filters above and click &quot;Search&quot; to find leads</p>
         </div>
       )}
 
-      {allLeads.length > 0 && (
+      {displayedLeads.length > 0 && (
         <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
           <div className="p-4 sm:p-6 border-b border-gray-800 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-white">Scraped Leads</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-white">Results</h3>
                 <p className="text-gray-400 text-sm">
-                  {pagination ? `${pagination.total} verified leads found` : `${allLeads.length} leads`}
+                   Page {pagination?.page} of {pagination?.pages}
                 </p>
               </div>
               
@@ -478,9 +326,9 @@ const LeadScraper = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                 <input
                   type="text"
-                  placeholder="Search leads..."
+                  placeholder="Filter results..."
                   value={searchTerm}
-                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full bg-black border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white text-sm focus:border-[#FF6B35] outline-none min-h-[44px]"
                 />
               </div>
@@ -556,26 +404,23 @@ const LeadScraper = () => {
                       <ArrowUpDown size={12} />
                     </div>
                   </th>
-                  <th className="px-4 py-4 cursor-pointer hover:text-[#FF6B35] transition-colors" onClick={() => handleSort("size")}>
-                    <div className="flex items-center gap-1">
-                      Size
-                      <ArrowUpDown size={12} />
-                    </div>
-                  </th>
                   <th className="px-4 py-4 cursor-pointer hover:text-[#FF6B35] transition-colors" onClick={() => handleSort("industry")}>
                     <div className="flex items-center gap-1">
                       Industry
                       <ArrowUpDown size={12} />
                     </div>
                   </th>
-                  {userPlan === "pro" && (
-                    <th className="px-4 py-4">Match Score</th>
-                  )}
                   <th className="px-4 py-4 w-12"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
-                {displayedLeads.map((lead) => (
+                {displayedLeads
+                    .filter(l => 
+                        !searchTerm || 
+                        `${l.firstName} ${l.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                        (l.company || "").toLowerCase().includes(searchTerm.toLowerCase())
+                    )
+                    .map((lead) => (
                   <tr key={lead.id} className="hover:bg-black/50 transition-colors">
                     <td className="px-4 py-4">
                       <input
@@ -587,21 +432,11 @@ const LeadScraper = () => {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
-                        {lead.founderImage ? (
-                          <img 
-                            src={lead.founderImage} 
-                            alt={lead.founderName} 
-                            className="w-10 h-10 rounded-full border border-gray-700 object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center border border-gray-700">
-                            <span className="text-gray-500 text-xs">?</span>
-                          </div>
-                        )}
+                        <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center border border-gray-700">
+                          <span className="text-gray-500 text-xs">{(lead.firstName[0] || "") + (lead.lastName[0] || "")}</span>
+                        </div>
                         <div className="flex flex-col">
-                          <span className="text-white text-sm font-medium">{lead.founderName}</span>
-                          <span className="text-gray-500 text-[10px]">{lead.founderTitle}</span>
+                          <span className="text-white text-sm font-medium">{lead.firstName} {lead.lastName}</span>
                         </div>
                       </div>
                     </td>
@@ -623,32 +458,7 @@ const LeadScraper = () => {
                     <td className="px-4 py-4 text-white">{lead.company}</td>
                     <td className="px-4 py-4 text-gray-400">{lead.title}</td>
                     <td className="px-4 py-4 text-gray-400">{lead.location}</td>
-                    <td className="px-4 py-4 text-gray-400">{lead.companySize}</td>
                     <td className="px-4 py-4 text-gray-400">{lead.industry}</td>
-                    {userPlan === "pro" && (
-                      <td className="px-4 py-4">
-                        {lead.matchQualityScore !== undefined ? (
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                              <div className={`px-2 py-1 rounded text-xs font-semibold ${
-                                lead.matchQualityScore >= 80 ? 'bg-green-900/30 text-green-400' :
-                                lead.matchQualityScore >= 60 ? 'bg-yellow-900/30 text-yellow-400' :
-                                'bg-gray-800 text-gray-400'
-                              }`}>
-                                {lead.matchQualityScore}%
-                              </div>
-                            </div>
-                            {lead.matchedCriteria && lead.matchedCriteria.length > 0 && (
-                              <div className="text-[10px] text-gray-500">
-                                {lead.matchedCriteria.join(', ')}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-gray-500 text-xs">-</span>
-                        )}
-                      </td>
-                    )}
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
                         <button
@@ -657,13 +467,6 @@ const LeadScraper = () => {
                           title="Craft message"
                         >
                           <MessageSquare size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteLead(lead.id)}
-                          className="text-gray-500 hover:text-red-500 transition-colors"
-                          title="Remove lead"
-                        >
-                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>
@@ -687,7 +490,13 @@ const LeadScraper = () => {
               </label>
             </div>
             
-            {displayedLeads.map((lead) => (
+            {displayedLeads
+                .filter(l => 
+                    !searchTerm || 
+                    `${l.firstName} ${l.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                    (l.company || "").toLowerCase().includes(searchTerm.toLowerCase())
+                )
+                .map((lead) => (
               <LeadCard
                 key={lead.id}
                 lead={lead}
@@ -708,7 +517,10 @@ const LeadScraper = () => {
               totalItems={pagination.total}
               itemsPerPage={itemsPerPage}
               onPageChange={handlePageChange}
-              onItemsPerPageChange={handleItemsPerPageChange}
+              onItemsPerPageChange={(limit) => {
+                  // We don't support changing limit in this MVP, but keeping interface
+                  console.log("Limit change not implemented", limit);
+              }}
             />
           )}
         </div>
@@ -723,79 +535,6 @@ const LeadScraper = () => {
             <p className="text-blue-200 text-sm font-medium">Real-time Notifications Enabled</p>
             <p className="text-blue-300/70 text-xs mt-1">You&apos;ll receive instant alerts for new leads matching your ICP</p>
           </div>
-        </div>
-      )}
-
-      {crmLevel !== "none" && allLeads.length > 0 && (
-        <div className="bg-[#1a1a1a] border border-gray-800 rounded-lg p-4 sm:p-6">
-          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            {crmLevel === "limited" ? "Limited CRM Actions" : "CRM Integration"}
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Link
-              href="/dashboard/crm"
-              className="bg-gray-800 hover:bg-gray-700 transition rounded-lg p-4 text-center"
-            >
-              <p className="text-white font-semibold mb-1">View in CRM</p>
-              <p className="text-gray-400 text-sm">Manage all contacts</p>
-            </Link>
-            {crmLevel === "full" && (
-              <>
-                <Link
-                  href="/dashboard/crm/pipeline"
-                  className="bg-gray-800 hover:bg-gray-700 transition rounded-lg p-4 text-center"
-                >
-                  <p className="text-white font-semibold mb-1">Add to Pipeline</p>
-                  <p className="text-gray-400 text-sm">Track deal progress</p>
-                </Link>
-              </>
-            )}
-          </div>
-          {crmLevel === "limited" && (
-            <p className="text-gray-500 text-xs mt-3">
-              Upgrade to Pro for full pipeline management, tasks, and automation
-            </p>
-          )}
-        </div>
-      )}
-
-      {analyticsLevel !== "none" && allLeads.length > 0 && (
-        <div className="bg-[#1a1a1a] border border-gray-800 rounded-lg p-4 sm:p-6">
-          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <TrendingUp size={20} className="text-[#FF6B35]" />
-            {analyticsLevel === "limited" ? "Basic Analytics" : "Advanced Analytics"}
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="bg-gray-800 rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-[#FF6B35]">{allLeads.length}</div>
-              <div className="text-gray-400 text-xs mt-1">Total Leads</div>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-green-400">
-                {allLeads.filter(l => l.verified).length}
-              </div>
-              <div className="text-gray-400 text-xs mt-1">Verified</div>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-blue-400">
-                {Math.round(allLeads.reduce((acc, l) => acc + (l.accuracy || 85), 0) / allLeads.length)}%
-              </div>
-              <div className="text-gray-400 text-xs mt-1">Avg Accuracy</div>
-            </div>
-            {analyticsLevel === "full" && (
-              <div className="bg-gray-800 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-purple-400">
-                  {new Set(allLeads.map(l => l.industry)).size}
-                </div>
-                <div className="text-gray-400 text-xs mt-1">Industries</div>
-              </div>
-            )}
-          </div>
-          {analyticsLevel === "limited" && (
-            <p className="text-gray-500 text-xs mt-3">
-              Upgrade to Pro for detailed analytics, industry breakdown, and conversion tracking
-            </p>
-          )}
         </div>
       )}
     </div>
