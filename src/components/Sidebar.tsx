@@ -17,7 +17,6 @@ import {
   BarChart3,
   Zap,
   PenTool,
-  Database
 } from "lucide-react";
 import { SignOutButton } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
@@ -57,15 +56,7 @@ const Sidebar = ({ isAdmin, userPlan, userEmail }: SidebarProps) => {
     menuItems.push({
       name: "Lead Scraper",
       icon: Search,
-      href: "/dashboard/scrape-leads",
-    });
-  }
-
-  if (hasFeature(userPlan, userEmail, "leadScraping")) {
-    menuItems.push({
-      name: "My Leads",
-      icon: Database,
-      href: "/dashboard/leads",
+      href: "/dashboard/lead-scraper",
     });
   }
 

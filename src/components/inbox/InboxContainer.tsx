@@ -109,13 +109,13 @@ export function InboxContainer({ userPlan, userEmail, batchId }: InboxContainerP
             {batches.length === 0 ? (
               <div className="text-center py-8">
                 <div className="text-gray-400 mb-4">No batches yet</div>
-                <button 
-                  onClick={() => window.location.href = '/dashboard/leads'}
+                <button
+                  onClick={() => window.location.href = '/dashboard/lead-scraper'}
                   className="bg-[#FF6B35] hover:bg-[#e55a2b] text-white px-4 py-2 rounded-lg text-sm transition-colors"
                 >
                   Scrape Your First Leads
                 </button>
-              </div>
+
             ) : (
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {batches.map((batch) => (
@@ -161,7 +161,7 @@ export function InboxContainer({ userPlan, userEmail, batchId }: InboxContainerP
                 Your scraped leads will appear here. Start by creating your first lead scraping campaign.
               </p>
               <button 
-                onClick={() => window.location.href = '/dashboard/leads'}
+                onClick={() => window.location.href = '/dashboard/lead-scraper'}
                 className="bg-[#FF6B35] hover:bg-[#e55a2b] text-white px-6 py-3 rounded-lg transition-colors"
               >
                 Go to Lead Scraper

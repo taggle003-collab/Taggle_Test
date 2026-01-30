@@ -1,18 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 
-interface Lead {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  company: string;
-  title: string;
-  location: string;
-  companySize: string;
-  industry: string;
-  matchQualityScore?: number;
-}
+import type { Lead } from "@/lib/lead-types";
 
 interface CraftRequest {
   lead: Lead;

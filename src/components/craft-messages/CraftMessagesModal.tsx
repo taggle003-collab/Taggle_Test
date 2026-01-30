@@ -5,7 +5,7 @@ import { X, Sparkles } from "lucide-react";
 import LeadSelector from "./LeadSelector";
 import ToneForm, { ToneType } from "./ToneForm";
 import ModalMessageCards from "./ModalMessageCards";
-import { Lead } from "../LeadScraper";
+import { Lead } from "@/lib/lead-types";
 import { useCraftMessages } from "@/lib/contexts/CraftMessagesContext";
 
 export default function CraftMessagesModal() {

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Lead } from "../../components/LeadScraper";
+import { Lead } from "@/lib/lead-types";
 
 interface CraftMessagesContextType {
   isOpen: boolean;

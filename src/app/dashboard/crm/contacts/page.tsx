@@ -39,7 +39,7 @@ export default async function ContactsPage() {
           </p>
         </div>
         <Link
-          href="/dashboard/leads"
+          href="/dashboard/lead-scraper"
           className="bg-[#FF6B35] text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-700 transition"
         >
           Scrape New Leads
@@ -54,7 +54,7 @@ export default async function ContactsPage() {
             Start by scraping leads from Lead Scraper page. They will automatically appear here.
           </p>
           <Link
-            href="/dashboard/leads"
+            href="/dashboard/lead-scraper"
             className="inline-block bg-[#FF6B35] text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-700 transition"
           >
             Go to Lead Scraper
