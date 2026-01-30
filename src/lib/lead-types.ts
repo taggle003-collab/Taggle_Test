@@ -13,17 +13,7 @@ export interface Lead {
   openHours?: string;
   socialMedia?: string;
   // Optional fields from scrapers
-  source?:
-    | "gemini"
-    | "llm"
-    | "kaggle"
-    | "reddit"
-    | "twitter"
-    | "youtube"
-    | "google"
-    | "instagram"
-    | "facebook"
-    | "discord";
+  source?: string;
   sourceUrl?: string;
   matchedCriteria?: string[];
   matchQualityScore?: number;
