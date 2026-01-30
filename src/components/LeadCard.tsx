@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Copy, Check, Trash2, Building2, MapPin, Users, Briefcase, ExternalLink, MessageSquare } from "lucide-react";
+import { Copy, Check, Trash2, Building2, MapPin, Users, Briefcase, ExternalLink, MessageSquare, Clock, Globe } from "lucide-react";
 import type { Lead } from "./LeadScraper";
 import { useCraftMessages } from "@/lib/contexts/CraftMessagesContext";
 
@@ -30,7 +30,8 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
       google: { color: "bg-green-900/30 text-green-400 border-green-900/50", label: "Google" },
       instagram: { color: "bg-pink-900/30 text-pink-400 border-pink-900/50", label: "Instagram" },
       facebook: { color: "bg-indigo-900/30 text-indigo-400 border-indigo-900/50", label: "Facebook" },
-      discord: { color: "bg-purple-900/30 text-purple-400 border-purple-900/50", label: "Discord" }
+      discord: { color: "bg-purple-900/30 text-purple-400 border-purple-900/50", label: "Discord" },
+      database: { color: "bg-teal-900/30 text-teal-400 border-teal-900/50", label: "Database" }
     };
 
     const badge = badges[source] || { color: "bg-gray-800 text-gray-400", label: "Unknown" };
@@ -38,6 +39,25 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
     return (
       <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border ${badge.color}`}>
         {badge.label}
+      </span>
+    );
+  };
+
+  const getCategoryBadge = (category: string) => {
+    const lowerCat = category.toLowerCase();
+    let color = "bg-gray-800 text-gray-400 border-gray-700";
+    
+    if (lowerCat.includes("tech") || lowerCat.includes("saas")) {
+      color = "bg-blue-900/30 text-blue-400 border-blue-900/50";
+    } else if (lowerCat.includes("health")) {
+      color = "bg-green-900/30 text-green-400 border-green-900/50";
+    } else if (lowerCat.includes("finance")) {
+      color = "bg-purple-900/30 text-purple-400 border-purple-900/50";
+    }
+  
+    return (
+      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border ${color}`}>
+        {category}
       </span>
     );
   };
@@ -54,12 +74,12 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
           />
         ) : (
           <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center border border-gray-700 flex-shrink-0">
-            <span className="text-gray-500">?</span>
+             <span className="text-gray-500 text-sm">{(lead.firstName?.[0] || "") + (lead.lastName?.[0] || "")}</span>
           </div>
         )}
         <div className="flex flex-col min-w-0 flex-1">
-          <span className="text-white font-medium text-sm truncate">{lead.founderName}</span>
-          <span className="text-gray-500 text-xs truncate">{lead.founderTitle}</span>
+          <span className="text-white font-medium text-sm truncate">{lead.firstName} {lead.lastName}</span>
+          <span className="text-gray-500 text-xs truncate">{lead.title}</span>
         </div>
         {lead.source && getSourceBadge(lead.source)}
       </div>
@@ -74,9 +94,14 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
           />
           <div className="flex-1 min-w-0">
             <h3 className="text-white font-semibold text-lg truncate">
-              {lead.firstName} {lead.lastName}
+              {lead.company}
             </h3>
-            <p className="text-gray-400 text-sm truncate">{lead.title}</p>
+            <div className="flex flex-wrap gap-2 mt-1">
+                 {getCategoryBadge(lead.industry)}
+                 <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium border border-gray-700 text-gray-300">
+                    {lead.location}
+                 </span>
+            </div>
           </div>
         </div>
         <button
@@ -101,38 +126,23 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
         </div>
 
         <div className="grid grid-cols-1 gap-2 text-sm">
-          <div className="flex items-center gap-2 text-gray-400">
-            <Building2 size={14} className="flex-shrink-0" />
-            <span className="truncate">{lead.company}</span>
-          </div>
-          
-          <div className="flex items-center gap-2 text-gray-400">
-            <MapPin size={14} className="flex-shrink-0" />
-            <span className="truncate">{lead.location}</span>
-          </div>
           
           <div className="flex items-center gap-2 text-gray-400">
             <Users size={14} className="flex-shrink-0" />
             <span className="truncate">{lead.companySize} employees</span>
           </div>
           
-          <div className="flex items-center gap-2 text-gray-400">
-            <Briefcase size={14} className="flex-shrink-0" />
-            <span className="truncate">{lead.industry}</span>
-          </div>
-          
-          {lead.matchQualityScore !== undefined && (
-            <div className="pt-2 border-t border-gray-800">
-              <div className="flex items-center gap-2">
-                <span className="text-gray-500 text-xs">Match Quality:</span>
-                <div className={`px-2 py-1 rounded text-xs font-semibold ${
-                  lead.matchQualityScore >= 80 ? 'bg-green-900/30 text-green-400' :
-                  lead.matchQualityScore >= 60 ? 'bg-yellow-900/30 text-yellow-400' :
-                  'bg-gray-800 text-gray-400'
-                }`}>
-                  {lead.matchQualityScore}%
-                </div>
-              </div>
+          {lead.openHours && (
+            <div className="flex items-center gap-2 text-gray-400">
+                <Clock size={14} className="flex-shrink-0" />
+                <span className="truncate">{lead.openHours}</span>
+            </div>
+          )}
+
+          {lead.socialMedia && (
+            <div className="flex items-center gap-2 text-gray-400">
+                <Globe size={14} className="flex-shrink-0" />
+                <span className="truncate">{lead.socialMedia}</span>
             </div>
           )}
           
@@ -145,25 +155,6 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
                     {criterion}
                   </span>
                 ))}
-              </div>
-            </div>
-          )}
-          
-          {(lead.fundingStage || lead.annualRevenue) && (
-            <div className="pt-2 border-t border-gray-800">
-              <div className="grid grid-cols-2 gap-2 text-[10px]">
-                {lead.fundingStage && (
-                  <div>
-                    <span className="text-gray-500">Funding:</span>
-                    <div className="text-gray-400">{lead.fundingStage}</div>
-                  </div>
-                )}
-                {lead.annualRevenue && (
-                  <div>
-                    <span className="text-gray-500">Revenue:</span>
-                    <div className="text-gray-400">{lead.annualRevenue}</div>
-                  </div>
-                )}
               </div>
             </div>
           )}
