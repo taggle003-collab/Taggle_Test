@@ -148,7 +148,7 @@ export function InboxContainer({ userPlan, userEmail, batchId }: InboxContainerP
                   </div>
                 ))}
               </div>
-            )}
+            ))}
           </div>
         </div>
 
