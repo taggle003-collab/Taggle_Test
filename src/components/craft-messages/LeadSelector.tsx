@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Lead } from "../LeadScraper";
 import { Search, User, Building2, MapPin } from "lucide-react";
+import { Lead } from "@/lib/lead-types";
 
 interface LeadSelectorProps {
   onLeadSelect: (lead: Lead | null) => void;

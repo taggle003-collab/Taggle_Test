@@ -1,111 +1,60 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase-client';
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-export async function GET(request: NextRequest) {
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error("[LEADS_SEARCH] Missing Supabase credentials");
+}
+
+const supabase = createClient(supabaseUrl || "", supabaseKey || "");
+
+export async function GET(request: Request) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const country = searchParams.get('country') || 'USA';
-    const category = searchParams.get('category');
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = 10;
-    const offset = (page - 1) * limit;
+    const { searchParams } = new URL(request.url);
+    const country = searchParams.get("country") || "USA";
+    const category = searchParams.get("category") || "Tech";
+    const page = parseInt(searchParams.get("page") || "1", 10);
 
     console.log(`[LEADS_SEARCH] Fetching: country=${country}, category=${category}, page=${page}`);
 
-    // Check if Supabase client is initialized
-    if (!supabase) {
-      console.error('[LEADS_SEARCH] Supabase client is not initialized');
-      return NextResponse.json(
-        { success: false, error: 'Supabase client not initialized' },
-        { status: 500 }
-      );
-    }
+    const pageSize = 10;
+    const offset = (page - 1) * pageSize;
 
-    // Build the query
-    let query = supabase
-      .from('leads')
-      .select('*', { count: 'exact' });
-
-    // Filter by country
-    if (country) {
-      console.log(`[LEADS_SEARCH] Filtering by country: ${country}`);
-      query = query.eq('country', country);
-    }
-
-    // Filter by category (mapped to businessType column)
-    if (category) {
-      console.log(`[LEADS_SEARCH] Filtering by category/businessType: ${category}`);
-      query = query.ilike('businessType', `%${category}%`);
-    }
-
-    // Execute the query with pagination
-    console.log(`[LEADS_SEARCH] Executing query with offset=${offset}, limit=${limit}`);
-    const { data, error, count } = await query
-      .range(offset, offset + limit - 1)
-      .order('createdAt', { ascending: false });
+    const { data, count, error } = await supabase
+      .from("leads")
+      .select("*", { count: "exact" })
+      .eq("Country", country)
+      .eq("Category", category)
+      .range(offset, offset + pageSize - 1);
 
     if (error) {
-      console.error('[LEADS_SEARCH] Supabase query error:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      });
+      console.error("[LEADS_SEARCH] Supabase error:", error);
       return NextResponse.json(
-        { success: false, error: error.message, details: error.details },
-        { status: 500 }
+        { success: false, error: `Database error: ${error.message}` },
+        { status: 400 }
       );
     }
 
     const totalCount = count || 0;
-    const totalPages = Math.ceil(totalCount / limit);
+    const totalPages = Math.ceil(totalCount / pageSize);
 
-    console.log(`[LEADS_SEARCH] Found ${totalCount} total leads, returning ${data?.length || 0} leads`);
-
-    // Transform data to match frontend Lead interface
-    const leads = (data || []).map((record: any) => {
-      // Split name into first/last if needed
-      const nameParts = (record.name || '').split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-
-      return {
-        id: record.id,
-        firstName: firstName,
-        lastName: lastName,
-        email: record.email || '',
-        company: record.company || record.website || '',
-        title: record.title || record.position || 'Unknown',
-        location: record.location || `${record.city || ''}, ${record.country || ''}`.replace(/^, /, '').replace(/, $/, ''),
-        companySize: record.companySize || record.company_size || 'Unknown',
-        industry: record.businessType || record.category || category || 'Unknown',
-        website: record.website,
-        phone: record.phone,
-        openHours: record.openHours,
-        socialMedia: record.socialMedia,
-        source: 'database',
-        matchQualityScore: 100,
-        matchedCriteria: [country, category].filter(Boolean)
-      };
-    });
+    console.log(`[LEADS_SEARCH] Found ${totalCount} total leads, returning ${data?.length || 0}`);
 
     return NextResponse.json({
       success: true,
-      leads,
+      leads: data || [],
       totalCount,
       page,
       totalPages,
-      pageSize: limit
+      pageSize,
     });
-
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[LEADS_SEARCH] Unexpected error:', {
-      message,
-      stack: error instanceof Error ? error.stack : undefined
-    });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[LEADS_SEARCH] Error:", message);
     return NextResponse.json(
-      { success: false, error: message },
+      { success: false, error: `Server error: ${message}` },
       { status: 500 }
     );
   }

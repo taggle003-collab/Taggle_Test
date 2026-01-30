@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Copy, Check, Trash2, Building2, MapPin, Users, Briefcase, ExternalLink, MessageSquare, Clock, Globe } from "lucide-react";
-import type { Lead } from "./LeadScraper";
+import type { Lead } from "@/lib/lead-types";
 import { useCraftMessages } from "@/lib/contexts/CraftMessagesContext";
 
 interface LeadCardProps {
