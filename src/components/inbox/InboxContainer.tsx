@@ -115,7 +115,7 @@ export function InboxContainer({ userPlan, userEmail, batchId }: InboxContainerP
                 >
                   Scrape Your First Leads
                 </button>
-
+              </div>
             ) : (
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {batches.map((batch) => (
@@ -148,7 +148,7 @@ export function InboxContainer({ userPlan, userEmail, batchId }: InboxContainerP
                   </div>
                 ))}
               </div>
-            ))}
+            )}
           </div>
         </div>
 
