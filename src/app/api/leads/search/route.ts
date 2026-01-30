@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import type { Lead } from "@/lib/lead-types";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -9,6 +10,50 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl || "", supabaseKey || "");
+
+// Database record type from Supabase
+interface DatabaseLead {
+  id: string;
+  Name: string;
+  Email?: string;
+  Phone?: string;
+  Website?: string;
+  Country: string;
+  Category: string;
+  City?: string;
+  OpenHours?: string;
+  SocialMedia?: string;
+  CompanySize?: string;
+  Title?: string;
+  Company?: string;
+}
+
+// Transform database record to Lead type
+function transformLead(record: DatabaseLead, category: string): Lead {
+  // Split name into firstName and lastName
+  const nameParts = (record.Name || '').split(' ');
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
+  return {
+    id: record.id,
+    firstName,
+    lastName,
+    email: record.Email || '',
+    company: record.Company || record.Website || 'Unknown Company',
+    title: record.Title || 'Unknown Title',
+    location: record.City ? `${record.City}, ${record.Country}` : record.Country,
+    companySize: record.CompanySize || 'Unknown',
+    industry: record.Category || category,
+    website: record.Website,
+    phone: record.Phone,
+    openHours: record.OpenHours,
+    socialMedia: record.SocialMedia,
+    source: 'database',
+    matchedCriteria: [record.Country, record.Category || category].filter(Boolean),
+    matchQualityScore: 100,
+  };
+}
 
 export async function GET(request: Request) {
   try {
@@ -40,11 +85,14 @@ export async function GET(request: Request) {
     const totalCount = count || 0;
     const totalPages = Math.ceil(totalCount / pageSize);
 
-    console.log(`[LEADS_SEARCH] Found ${totalCount} total leads, returning ${data?.length || 0}`);
+    // Transform database records to Lead type
+    const leads: Lead[] = (data || []).map((record: any) => transformLead(record as DatabaseLead, category));
+
+    console.log(`[LEADS_SEARCH] Found ${totalCount} total leads, returning ${leads.length}`);
 
     return NextResponse.json({
       success: true,
-      leads: data || [],
+      leads,
       totalCount,
       page,
       totalPages,

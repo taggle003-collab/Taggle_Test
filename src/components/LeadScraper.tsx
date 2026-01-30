@@ -10,32 +10,7 @@ import { Mail, Search, CheckCircle2, AlertCircle, Loader2, Copy, Trash2, Check, 
 import { useUser } from "@clerk/nextjs";
 import { hasFeature, getLeadsLimit, getFeatureLevel, getICPMatchingLevel } from "@/lib/feature-access";
 import { useCraftMessages } from "@/lib/contexts/CraftMessagesContext";
-
-export interface Lead {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  company: string;
-  title: string;
-  location: string;
-  companySize: string;
-  industry: string;
-  linkedInProfile?: string;
-  verified?: boolean;
-  accuracy?: number;
-  founderName?: string;
-  founderTitle?: string;
-  founderImage?: string;
-  fundingStage?: string;
-  annualRevenue?: string;
-  matchQualityScore?: number;
-  matchedCriteria?: string[];
-  source?: string;
-  sourceUrl?: string;
-  openHours?: string;
-  socialMedia?: string;
-}
+import type { Lead } from "@/lib/lead-types";
 
 interface PaginationInfo {
   page: number;
