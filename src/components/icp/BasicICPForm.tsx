@@ -64,9 +64,9 @@ const BasicICPForm = ({ onScrape, isLoading, searchesRemaining, rateLimitReset, 
 
     // Check if user has filled either custom ICP or structured fields
     const hasCustomICP = criteria.customICP && criteria.customICP.trim().length > 0;
-    const hasStructuredFields = criteria.industry && criteria.companySize && criteria.location && criteria.jobTitles.length > 0;
+    const hasAnyStructuredFields = criteria.industry || criteria.companySize || criteria.location || criteria.jobTitles.length > 0;
 
-    if (!hasCustomICP && !hasStructuredFields) {
+    if (!hasCustomICP && !hasAnyStructuredFields) {
       setValidationError("Please define ICP either through structured fields or custom description");
       return;
     }
@@ -141,7 +141,7 @@ const BasicICPForm = ({ onScrape, isLoading, searchesRemaining, rateLimitReset, 
       <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${isLocked ? "opacity-50 pointer-events-none" : ""}`}>
         <div>
           <label className="block text-sm font-medium text-gray-400 mb-1">
-            Industry / Vertical <span className="text-red-500">*</span>
+            Industry / Vertical (Optional)
           </label>
           <select
             name="industry"
@@ -158,7 +158,7 @@ const BasicICPForm = ({ onScrape, isLoading, searchesRemaining, rateLimitReset, 
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-400 mb-1">
-            Company Size <span className="text-red-500">*</span>
+            Company Size (Optional)
           </label>
           <select
             name="companySize"
@@ -167,7 +167,7 @@ const BasicICPForm = ({ onScrape, isLoading, searchesRemaining, rateLimitReset, 
             className="w-full bg-black border border-gray-700 rounded-lg p-2.5 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
             disabled={isLocked}
           >
-            <option value="">Select size</option>
+            <option value="">Select size (optional)</option>
             <option value="1-10">1-10 employees</option>
             <option value="10-50">10-50 employees</option>
             <option value="50-100">50-100 employees</option>
@@ -178,7 +178,7 @@ const BasicICPForm = ({ onScrape, isLoading, searchesRemaining, rateLimitReset, 
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-400 mb-1">
-            Location <span className="text-red-500">*</span>
+            Location (Optional)
           </label>
           <input
             type="text"
@@ -192,7 +192,7 @@ const BasicICPForm = ({ onScrape, isLoading, searchesRemaining, rateLimitReset, 
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-400 mb-1">
-            Job Titles <span className="text-red-500">*</span> <span className="text-xs text-gray-500">(max 3)</span>
+            Job Titles (Optional) <span className="text-xs text-gray-500">(max 3)</span>
           </label>
           <div className="relative">
             <button
