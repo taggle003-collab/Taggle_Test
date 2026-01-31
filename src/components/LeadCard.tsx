@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Copy, Check, Trash2, Users, Clock, Globe, Building2 } from "lucide-react";
+import { Copy, Check, Trash2, Clock, Globe, Building2, Mail } from "lucide-react";
 import type { Lead } from "@/lib/lead-types";
 import { useCraftMessages } from "@/lib/contexts/CraftMessagesContext";
 
@@ -41,15 +41,15 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
   };
 
   return (
-    <div className="bg-black border border-gray-800 rounded-xl p-5 space-y-4 hover:border-[#FF6B35] hover:shadow-lg hover:shadow-[#FF6B35]/10 transition-all duration-300">
+    <div className="bg-gradient-to-br from-black via-gray-900/20 to-black border border-gray-800/60 rounded-xl p-5 space-y-4 hover:border-[#FF6B35]/80 hover:shadow-2xl hover:shadow-[#FF6B35]/20 transition-all duration-500 group hover:scale-[1.02] hover:-translate-y-1">
       {/* Header section */}
       <div className="flex items-center gap-4 border-b border-gray-800/60 pb-4">
-        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center border border-gray-700/50 flex-shrink-0 shadow-inner">
-           <span className="text-gray-400 font-semibold text-base">{(lead.firstName?.[0] || "") + (lead.lastName?.[0] || "")}</span>
+        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#FF6B35]/20 via-[#FF6B35]/10 to-gray-800 flex items-center justify-center border border-[#FF6B35]/30 flex-shrink-0 shadow-lg shadow-[#FF6B35]/20 group-hover:shadow-[#FF6B35]/40 group-hover:border-[#FF6B35]/60 transition-all duration-500">
+           <span className="text-[#FF6B35] font-bold text-lg drop-shadow-sm">{(lead.firstName?.[0] || "") + (lead.lastName?.[0] || "")}</span>
         </div>
         <div className="flex flex-col min-w-0 flex-1">
-          <span className="text-white font-semibold text-base truncate tracking-tight">{lead.firstName} {lead.lastName}</span>
-          <span className="text-gray-400 text-sm truncate mt-0.5">{lead.title}</span>
+          <span className="text-white font-bold text-lg truncate tracking-tight group-hover:text-[#FF6B35] transition-colors duration-300">{lead.firstName} {lead.lastName}</span>
+          <span className="text-gray-400 text-sm truncate mt-0.5 font-medium">{lead.title}</span>
         </div>
       </div>
 
@@ -60,18 +60,18 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
             type="checkbox"
             checked={isSelected}
             onChange={() => onSelect(lead.id)}
-            className="w-5 h-5 mt-0.5 accent-[#FF6B35] cursor-pointer flex-shrink-0 rounded border-gray-600"
+            className="w-5 h-5 mt-0.5 accent-[#FF6B35] cursor-pointer flex-shrink-0 rounded border-gray-600 focus:ring-2 focus:ring-[#FF6B35]/50 focus:ring-offset-0 focus:ring-offset-transparent"
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <Building2 size={16} className="text-[#FF6B35] flex-shrink-0" />
-              <h3 className="text-white font-bold text-lg truncate">
+              <Building2 size={18} className="text-[#FF6B35] flex-shrink-0 drop-shadow-sm" />
+              <h3 className="text-white font-bold text-xl truncate group-hover:text-[#FF6B35] transition-colors duration-300">
                 {lead.company}
               </h3>
             </div>
-            <div className="flex flex-wrap gap-2 mt-2.5">
+            <div className="flex flex-wrap gap-2 mt-3">
                  {getCategoryBadge(lead.industry)}
-                 <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border border-gray-700/60 text-gray-300 bg-gray-800/30">
+                 <span className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold border border-[#FF6B35]/30 text-[#FF6B35] bg-[#FF6B35]/10 backdrop-blur-sm">
                     {lead.location}
                  </span>
             </div>
@@ -79,7 +79,7 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
         </div>
         <button
           onClick={() => onDelete(lead.id)}
-          className="text-gray-500 hover:text-red-400 transition-colors p-2 flex-shrink-0 rounded-lg hover:bg-red-950/30"
+          className="text-gray-500 hover:text-red-400 transition-all p-2.5 flex-shrink-0 rounded-lg hover:bg-red-950/30 hover:scale-110"
           title="Remove lead"
         >
           <Trash2 size={16} />
@@ -87,49 +87,45 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
       </div>
 
       {/* Email section - prominent */}
-      <div className="bg-gradient-to-r from-[#FF6B35]/10 to-[#FF6B35]/5 border border-[#FF6B35]/30 rounded-lg p-3">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[#FF6B35] font-semibold text-base break-all">{lead.email}</span>
+      <div className="bg-gradient-to-r from-[#FF6B35]/20 via-[#FF6B35]/15 to-[#FF6B35]/10 border-2 border-[#FF6B35]/40 rounded-lg p-4 shadow-lg shadow-[#FF6B35]/10 group-hover:shadow-[#FF6B35]/25 group-hover:shadow-xl transition-all duration-500">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[#FF6B35]/20 flex items-center justify-center border border-[#FF6B35]/40">
+              <Mail size={16} className="text-[#FF6B35]" />
+            </div>
+            <span className="text-[#FF6B35] font-bold text-lg break-all">{lead.email}</span>
+          </div>
           <button
             onClick={() => onCopyEmail(lead.email)}
-            className={`flex-shrink-0 p-2 rounded-lg transition-all duration-200 ${
+            className={`flex-shrink-0 p-3 rounded-xl transition-all duration-300 ${
               copiedEmail === lead.email 
-                ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
-                : 'bg-[#FF6B35]/20 text-[#FF6B35] border border-[#FF6B35]/30 hover:bg-[#FF6B35]/30'
+                ? 'bg-green-500/30 text-green-400 border-2 border-green-500/50 shadow-lg' 
+                : 'bg-[#FF6B35]/30 text-[#FF6B35] border-2 border-[#FF6B35]/50 hover:bg-[#FF6B35]/40 hover:scale-110 hover:shadow-lg hover:shadow-[#FF6B35]/30'
             }`}
             title="Copy email"
           >
-            {copiedEmail === lead.email ? <Check size={16} /> : <Copy size={16} />}
+            {copiedEmail === lead.email ? <Check size={18} /> : <Copy size={18} />}
           </button>
         </div>
       </div>
 
       {/* Details section */}
-      <div className="space-y-2.5">
-        {lead.companySize && lead.companySize !== 'Unknown' && (
-          <div className="flex items-center gap-2.5 text-gray-400 text-sm">
-            <div className="w-7 h-7 rounded-md bg-gray-800/50 flex items-center justify-center border border-gray-700/50">
-              <Users size={13} className="text-gray-400" />
-            </div>
-            <span className="truncate">{lead.companySize} employees</span>
-          </div>
-        )}
-        
+      <div className="space-y-3">
         {lead.openHours && (
-          <div className="flex items-center gap-2.5 text-gray-400 text-sm">
-            <div className="w-7 h-7 rounded-md bg-gray-800/50 flex items-center justify-center border border-gray-700/50">
-              <Clock size={13} className="text-gray-400" />
+          <div className="flex items-center gap-3 text-gray-400 text-sm bg-gray-800/20 border border-gray-700/40 rounded-lg p-3 group-hover:border-[#FF6B35]/30 group-hover:bg-[#FF6B35]/5 transition-all duration-300">
+            <div className="w-8 h-8 rounded-md bg-gray-800/50 flex items-center justify-center border border-gray-700/50 group-hover:border-[#FF6B35]/30 transition-all duration-300">
+              <Clock size={14} className="text-gray-400 group-hover:text-[#FF6B35] transition-colors duration-300" />
             </div>
-            <span className="truncate">{lead.openHours}</span>
+            <span className="truncate font-medium">{lead.openHours}</span>
           </div>
         )}
 
         {lead.socialMedia && (
-          <div className="flex items-center gap-2.5 text-gray-400 text-sm">
-            <div className="w-7 h-7 rounded-md bg-gray-800/50 flex items-center justify-center border border-gray-700/50">
-              <Globe size={13} className="text-gray-400" />
+          <div className="flex items-center gap-3 text-gray-400 text-sm bg-gray-800/20 border border-gray-700/40 rounded-lg p-3 group-hover:border-[#FF6B35]/30 group-hover:bg-[#FF6B35]/5 transition-all duration-300">
+            <div className="w-8 h-8 rounded-md bg-gray-800/50 flex items-center justify-center border border-gray-700/50 group-hover:border-[#FF6B35]/30 transition-all duration-300">
+              <Globe size={14} className="text-gray-400 group-hover:text-[#FF6B35] transition-colors duration-300" />
             </div>
-            <span className="truncate">{lead.socialMedia}</span>
+            <span className="truncate font-medium">{lead.socialMedia}</span>
           </div>
         )}
       </div>

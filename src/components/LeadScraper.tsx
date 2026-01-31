@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import Link from "next/link";
+import React, { useState } from "react";
 import LeadFilterBar from "./LeadFilterBar";
 import LeadCard from "./LeadCard";
 import Pagination from "./Pagination";
 import UpgradePrompt from "./UpgradePrompt";
-import { Mail, Search, CheckCircle2, AlertCircle, Loader2, Copy, Trash2, Check, ArrowUpDown, TrendingUp, MessageSquare } from "lucide-react";
+import { Mail, Search, CheckCircle2, AlertCircle, Loader2, Copy, Check, ArrowUpDown, MessageSquare, Settings, ChevronDown, ChevronUp } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import { hasFeature, getLeadsLimit, getFeatureLevel, getICPMatchingLevel } from "@/lib/feature-access";
+import { hasFeature, getLeadsLimit } from "@/lib/feature-access";
 import { useCraftMessages } from "@/lib/contexts/CraftMessagesContext";
 import type { Lead } from "@/lib/lead-types";
 
@@ -32,9 +31,7 @@ const LeadScraper = () => {
 
   const canScrape = hasFeature(userPlan, userEmail, "leadScraping");
   const leadsLimit = getLeadsLimit(userPlan, userEmail);
-  const crmLevel = getFeatureLevel(userPlan, userEmail, "crmIntegrations");
   const hasNotifications = hasFeature(userPlan, userEmail, "realtimeNotifications");
-  const analyticsLevel = getFeatureLevel(userPlan, userEmail, "advancedAnalytics");
 
   const [country, setCountry] = useState("USA");
   const [category, setCategory] = useState("Tech");
@@ -43,7 +40,6 @@ const LeadScraper = () => {
   const [displayedLeads, setDisplayedLeads] = useState<Lead[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -53,6 +49,7 @@ const LeadScraper = () => {
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+  const [showICPPreferences, setShowICPPreferences] = useState(false);
 
   const fetchLeads = async (page: number = 1) => {
     setIsLoading(true);
@@ -286,6 +283,126 @@ const LeadScraper = () => {
         />
       </div>
 
+      {/* Optional ICP Preferences Section */}
+      <div className="bg-gradient-to-br from-[#1a1a1a] via-gray-900/20 to-[#1a1a1a] rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
+        <button
+          onClick={() => setShowICPPreferences(!showICPPreferences)}
+          className="w-full p-6 flex items-center justify-between text-left hover:bg-gray-800/30 transition-all duration-300"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FF6B35]/20 to-[#FF6B35]/10 flex items-center justify-center border border-[#FF6B35]/30">
+              <Settings size={20} className="text-[#FF6B35]" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white group-hover:text-[#FF6B35] transition-colors duration-300">ICP Preferences (Optional)</h3>
+              <p className="text-sm text-gray-400 mt-1">Customize your ideal customer profile for better lead matching</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500 px-3 py-1 bg-gray-800/50 rounded-full border border-gray-700/50">Optional</span>
+            {showICPPreferences ? <ChevronUp size={20} className="text-[#FF6B35]" /> : <ChevronDown size={20} className="text-gray-400" />}
+          </div>
+        </button>
+        
+        {showICPPreferences && (
+          <div className="px-6 pb-6 border-t border-gray-800/60 bg-gradient-to-br from-black/20 to-transparent">
+            <div className="mt-6 space-y-4">
+              <div className="bg-gradient-to-r from-[#FF6B35]/10 to-[#FF6B35]/5 border border-[#FF6B35]/30 rounded-lg p-4">
+                <h4 className="text-[#FF6B35] font-semibold mb-2">🎯 What are ICP Preferences?</h4>
+                <p className="text-gray-300 text-sm">Set your ideal customer profile to get more targeted leads. This helps our AI understand who you&apos;re looking for and prioritize matching results.</p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Industry Focus (Optional)</label>
+                  <select
+                    className="w-full bg-black border border-gray-700 rounded-lg p-3 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
+                    defaultValue=""
+                  >
+                    <option value="">Any industry</option>
+                    <option value="SaaS">SaaS</option>
+                    <option value="Healthcare">Healthcare</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Manufacturing">Manufacturing</option>
+                    <option value="Retail">Retail</option>
+                    <option value="Tech">Tech</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Company Size (Optional)</label>
+                  <select
+                    className="w-full bg-black border border-gray-700 rounded-lg p-3 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
+                    defaultValue=""
+                  >
+                    <option value="">Any size</option>
+                    <option value="1-10">1-10 employees</option>
+                    <option value="10-50">10-50 employees</option>
+                    <option value="50-100">50-100 employees</option>
+                    <option value="100-500">100-500 employees</option>
+                    <option value="500+">500+ employees</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Budget Range (Optional)</label>
+                  <select
+                    className="w-full bg-black border border-gray-700 rounded-lg p-3 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
+                    defaultValue=""
+                  >
+                    <option value="">Any budget</option>
+                    <option value="budget">Budget-conscious</option>
+                    <option value="mid-range">Mid-range</option>
+                    <option value="premium">Premium</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Growth Stage (Optional)</label>
+                  <select
+                    className="w-full bg-black border border-gray-700 rounded-lg p-3 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
+                    defaultValue=""
+                  >
+                    <option value="">Any stage</option>
+                    <option value="early">Early stage</option>
+                    <option value="growth">Growth stage</option>
+                    <option value="mature">Mature</option>
+                    <option value="established">Established</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Additional Criteria (Optional)</label>
+                <textarea
+                  placeholder="e.g., 'B2B focus', 'English-speaking', 'Tech-savvy', 'Remote-first', etc."
+                  className="w-full bg-black border border-gray-700 rounded-lg p-3 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none min-h-[80px] resize-y"
+                  rows={3}
+                />
+                <p className="text-xs text-gray-500 mt-1">Add any specific business criteria that matter to you</p>
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  className="px-6 py-2 bg-gradient-to-r from-[#FF6B35] to-[#FF8B55] hover:from-[#FF8B55] hover:to-[#FF6B35] text-white rounded-lg font-semibold transition-all duration-300 shadow-lg shadow-[#FF6B35]/25 hover:shadow-[#FF6B35]/40"
+                >
+                  Save Preferences
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowICPPreferences(false)}
+                  className="px-6 py-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg font-semibold transition-all duration-300 border border-gray-600/50"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {message && (
         <div className={`p-4 rounded-lg flex items-center ${
           message.type === "success" ? "bg-green-900/20 text-green-400 border border-green-900/30" : "bg-red-900/20 text-red-400 border border-red-900/30"
@@ -507,7 +624,7 @@ const LeadScraper = () => {
               currentPage={currentPage}
               totalPages={pagination.pages}
               totalItems={pagination.total}
-              itemsPerPage={itemsPerPage}
+              itemsPerPage={10}
               onPageChange={handlePageChange}
               onItemsPerPageChange={(limit) => {
                   // We don't support changing limit in this MVP, but keeping interface
@@ -525,7 +642,7 @@ const LeadScraper = () => {
           </div>
           <div>
             <p className="text-blue-200 text-sm font-medium">Real-time Notifications Enabled</p>
-            <p className="text-blue-300/70 text-xs mt-1">You&apos;ll receive instant alerts for new leads matching your ICP</p>
+            <p className="text-blue-300/70 text-xs mt-1">YouYou&apos;ll receiveapos;ll receive instant alerts for new leads matching your ICP</p>
           </div>
         </div>
       )}
