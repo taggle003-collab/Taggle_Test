@@ -20,6 +20,7 @@ interface DatabaseLead {
   Website?: string;
   Country: string;
   Category: string;
+  "industry category"?: string;
   City?: string;
   OpenHours?: string;
   SocialMedia?: string;
@@ -44,13 +45,13 @@ function transformLead(record: DatabaseLead, category: string): Lead {
     title: record.Title || 'Unknown Title',
     location: record.City ? `${record.City}, ${record.Country}` : record.Country,
     companySize: record.CompanySize || 'Unknown',
-    industry: record.Category || category,
+    industry: record["industry category"] || record.Category || category,
     website: record.Website,
     phone: record.Phone,
     openHours: record.OpenHours,
     socialMedia: record.SocialMedia,
     source: 'database',
-    matchedCriteria: [record.Country, record.Category || category].filter(Boolean),
+    matchedCriteria: [record.Country, record["industry category"] || record.Category || category].filter(Boolean),
     matchQualityScore: 100,
   };
 }
@@ -71,7 +72,7 @@ export async function GET(request: Request) {
       .from("leads")
       .select("*", { count: "exact" })
       .eq("Country", country)
-      .eq("Category", category)
+      .eq("industry category", category)
       .range(offset, offset + pageSize - 1);
 
     if (error) {
