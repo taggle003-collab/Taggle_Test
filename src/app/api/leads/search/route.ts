@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { auth } from "@clerk/nextjs/server";
 import type { Lead } from "@/lib/lead-types";
+import { rateLimiter } from "@/lib/rate-limiter";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -58,6 +60,32 @@ function transformLead(record: DatabaseLead, category: string): Lead {
 
 export async function GET(request: Request) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // Check rate limit
+    const rateLimitResult = rateLimiter.checkSearchLimit(userId);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: rateLimitResult.error || "Too many requests",
+          rateLimited: true 
+        },
+        { 
+          status: 429,
+          headers: rateLimitResult.retryAfter 
+            ? { "Retry-After": rateLimitResult.retryAfter.toString() }
+            : undefined
+        }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const country = searchParams.get("country") || "USA";
     const category = searchParams.get("category") || "Tech";

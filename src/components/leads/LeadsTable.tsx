@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Copy, Mail, Phone, ExternalLink } from 'lucide-react';
+import { Copy, Mail, Phone, ExternalLink, Check } from 'lucide-react';
 import { Lead } from '@/lib/supabase-client';
 
 interface LeadsTableProps {
@@ -24,7 +24,7 @@ const LeadsTable: React.FC<LeadsTableProps> = ({ leads, loading }) => {
 
   if (loading) {
     return (
-      <div className="bg-gray-900 rounded-lg p-8 text-center">
+      <div className="bg-black border border-gray-800 rounded-xl p-8 text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF6B35] mx-auto"></div>
         <p className="text-gray-400 mt-2">Loading leads...</p>
       </div>
@@ -32,41 +32,44 @@ const LeadsTable: React.FC<LeadsTableProps> = ({ leads, loading }) => {
   }
 
   if (leads.length === 0) {
-    return null; // This should be handled by the parent component
+    return null;
   }
 
   return (
-    <div className="bg-gray-900 rounded-lg overflow-hidden">
+    <div className="bg-black border border-gray-800 rounded-xl overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-800">
+          <thead className="bg-gray-900/50 border-b border-gray-800">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
                 Name
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
                 Contact
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
                 Location
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
                 Business Type
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-700">
+          <tbody className="divide-y divide-gray-800">
             {leads.map((lead) => (
-              <tr key={lead.id} className="hover:bg-gray-800/50">
+              <tr 
+                key={lead.id} 
+                className="hover:bg-gray-900/50 transition-colors duration-200"
+              >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div>
-                    <div className="text-sm font-medium text-white">{lead.name}</div>
+                    <div className="text-sm font-semibold text-white">{lead.name}</div>
                     {lead.website && (
-                      <div className="text-sm text-gray-400 flex items-center gap-1">
-                        <ExternalLink size={12} />
+                      <div className="text-sm text-gray-400 flex items-center gap-1 mt-1">
+                        <ExternalLink size={12} className="text-gray-500" />
                         <a 
                           href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
                           target="_blank"
@@ -80,21 +83,22 @@ const LeadsTable: React.FC<LeadsTableProps> = ({ leads, loading }) => {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     {lead.email && (
                       <div className="flex items-center gap-2">
-                        <Mail size={14} className="text-gray-400" />
-                        <span className="text-sm text-white">{lead.email}</span>
+                        <Mail size={14} className="text-[#FF6B35]" />
+                        <span className="text-sm text-[#FF6B35] font-medium">{lead.email}</span>
                         <button
                           onClick={() => copyToClipboard(lead.email!, 'email-' + lead.id)}
-                          className="p-1 text-gray-400 hover:text-[#FF6B35] transition-colors"
+                          className={`p-1.5 rounded-lg transition-all duration-200 ${
+                            copiedField === 'email-' + lead.id
+                              ? 'bg-green-500/20 text-green-400'
+                              : 'text-gray-400 hover:text-[#FF6B35] hover:bg-[#FF6B35]/10'
+                          }`}
                           title="Copy email"
                         >
-                          <Copy size={12} />
+                          {copiedField === 'email-' + lead.id ? <Check size={12} /> : <Copy size={12} />}
                         </button>
-                        {copiedField === 'email-' + lead.id && (
-                          <span className="text-xs text-green-400">Copied!</span>
-                        )}
                       </div>
                     )}
                     {lead.phone && (
@@ -103,26 +107,27 @@ const LeadsTable: React.FC<LeadsTableProps> = ({ leads, loading }) => {
                         <span className="text-sm text-white">{lead.phone}</span>
                         <button
                           onClick={() => copyToClipboard(lead.phone!, 'phone-' + lead.id)}
-                          className="p-1 text-gray-400 hover:text-[#FF6B35] transition-colors"
+                          className={`p-1.5 rounded-lg transition-all duration-200 ${
+                            copiedField === 'phone-' + lead.id
+                              ? 'bg-green-500/20 text-green-400'
+                              : 'text-gray-400 hover:text-[#FF6B35] hover:bg-[#FF6B35]/10'
+                          }`}
                           title="Copy phone"
                         >
-                          <Copy size={12} />
+                          {copiedField === 'phone-' + lead.id ? <Check size={12} /> : <Copy size={12} />}
                         </button>
-                        {copiedField === 'phone-' + lead.id && (
-                          <span className="text-xs text-green-400">Copied!</span>
-                        )}
                       </div>
                     )}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-white">
-                    {lead.city && <div>{lead.city}</div>}
-                    <div className="text-gray-400">{lead.country}</div>
+                    {lead.city && <div className="font-medium">{lead.city}</div>}
+                    <div className="text-gray-400 text-sm">{lead.country}</div>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-white">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border border-gray-700/60 text-gray-300 bg-gray-800/30">
                     {lead.businessType || 'Not specified'}
                   </span>
                 </td>
@@ -131,7 +136,7 @@ const LeadsTable: React.FC<LeadsTableProps> = ({ leads, loading }) => {
                     {lead.email && (
                       <button
                         onClick={() => copyToClipboard(lead.email!, 'email-btn-' + lead.id)}
-                        className="px-3 py-1 bg-[#FF6B35] text-white rounded text-xs hover:bg-[#e55a2b] transition-colors flex items-center gap-1"
+                        className="px-3 py-1.5 bg-gradient-to-r from-[#FF6B35] to-[#FF8B55] hover:from-[#FF8B55] hover:to-[#FF6B35] text-white rounded-md text-xs font-medium transition-all duration-300 flex items-center gap-1.5 shadow-md shadow-[#FF6B35]/20"
                       >
                         <Mail size={12} />
                         Copy Email
@@ -140,7 +145,7 @@ const LeadsTable: React.FC<LeadsTableProps> = ({ leads, loading }) => {
                     {lead.phone && (
                       <button
                         onClick={() => copyToClipboard(lead.phone!, 'phone-btn-' + lead.id)}
-                        className="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-500 transition-colors flex items-center gap-1"
+                        className="px-3 py-1.5 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-md text-xs font-medium transition-all duration-300 border border-gray-600/50 flex items-center gap-1.5"
                       >
                         <Phone size={12} />
                         Copy Phone

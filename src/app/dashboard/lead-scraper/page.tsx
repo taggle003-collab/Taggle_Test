@@ -51,9 +51,18 @@ const LeadScraperPage = () => {
       }
 
       const response = await fetch(`/api/leads/search?${params.toString()}`);
+      
+      if (!response.ok) {
+        if (response.status === 429) {
+          const data = await response.json();
+          throw new Error(data.error || "Too many searches. Please wait a moment before trying again.");
+        }
+        throw new Error("Failed to fetch leads");
+      }
+
       const data = await response.json();
 
-      if (!response.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || "Failed to fetch leads");
       }
 
