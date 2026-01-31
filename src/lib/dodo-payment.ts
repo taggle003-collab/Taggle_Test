@@ -121,14 +121,15 @@ export async function createDodoCheckoutSession(
   console.log("[dodo-payment] API key loaded:", bearerToken.substring(0, 8) + "...");
 
   // Try different authentication methods that Dodo might support
+  // Standard is usually Bearer token, so try that first.
   const authHeaders: { name: string; headers: Record<string, string> }[] = [
-    {
-      name: "X-API-Key",
-      headers: { "X-API-Key": bearerToken }
-    },
     {
       name: "Authorization Bearer",
       headers: { Authorization: `Bearer ${bearerToken}` }
+    },
+    {
+      name: "X-API-Key",
+      headers: { "X-API-Key": bearerToken }
     },
     {
       name: "Authorization API Key",
