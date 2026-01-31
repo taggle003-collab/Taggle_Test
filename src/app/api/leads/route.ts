@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       .eq('userId', userId);
 
     if (country) {
-      query = query.eq('country', country);
+      query = query.eq('Country', country);
     }
 
     if (city) {
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (businessType) {
-      query = query.ilike('businessType', `%${businessType}%`);
+      query = query.ilike('industry category', `%${businessType}%`);
     }
 
     const { data, error, count } = await query.order('createdAt', { ascending: false });
