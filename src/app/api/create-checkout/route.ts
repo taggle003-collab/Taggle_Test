@@ -133,6 +133,7 @@ export async function POST(request: NextRequest) {
         error: "Failed to create checkout session",
         message: error instanceof Error ? error.message : "Unknown error",
         requestId,
+        details: (error as any)?.details, // Expose upstream error details to client
       },
       { status }
     );
