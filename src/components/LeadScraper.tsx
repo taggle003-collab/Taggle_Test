@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import LeadFilterBar from "./LeadFilterBar";
 import LeadCard from "./LeadCard";
 import Pagination from "./Pagination";
 import UpgradePrompt from "./UpgradePrompt";
-import { Mail, Search, CheckCircle2, AlertCircle, Loader2, Copy, Check, ArrowUpDown, MessageSquare, Settings, ChevronDown, ChevronUp } from "lucide-react";
+import GlobalICPForm, { GlobalICPSettings } from "./GlobalICPForm";
+import { Mail, Search, CheckCircle2, AlertCircle, Loader2, Copy, Check, ArrowUpDown, MessageSquare } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { hasFeature, getLeadsLimit } from "@/lib/feature-access";
 import { useCraftMessages } from "@/lib/contexts/CraftMessagesContext";
@@ -22,6 +23,47 @@ interface PaginationInfo {
 
 type SortField = "name" | "email" | "company" | "title" | "location" | "size" | "industry";
 type SortOrder = "asc" | "desc";
+
+const calculateICPScore = (lead: Lead, settings: GlobalICPSettings | null) => {
+  if (!settings) return { score: 0, matches: [] as string[] };
+  
+  let score = 0;
+  const matches: string[] = [];
+  
+  // Industry match
+  if (settings.industries && settings.industries.length > 0) {
+    if (settings.industries.some(i => lead.industry?.toLowerCase().includes(i.toLowerCase()))) {
+      score += 30;
+      matches.push("Industry");
+    }
+  }
+  
+  // Company Size match
+  if (settings.companySize) {
+     const leadSize = lead.companySize?.toLowerCase() || "";
+     const targetSize = settings.companySize.toLowerCase();
+     
+     // specific check for startup mapping since data might be '1-10'
+     if (targetSize === 'startup' && (leadSize === '1-10' || leadSize === '11-50' || leadSize === '1-50')) {
+         score += 20;
+         matches.push("Size");
+     } else if (leadSize.includes(targetSize)) {
+         score += 20;
+         matches.push("Size");
+     }
+  }
+  
+  // Decision Makers match
+  if (settings.decisionMakers) {
+    const titles = settings.decisionMakers.split(",").map(t => t.trim().toLowerCase());
+    if (titles.some(t => lead.title?.toLowerCase().includes(t))) {
+      score += 30;
+      matches.push("Role");
+    }
+  }
+
+  return { score, matches };
+};
 
 const LeadScraper = () => {
   const { user } = useUser();
@@ -50,6 +92,19 @@ const LeadScraper = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
   const [showICPPreferences, setShowICPPreferences] = useState(false);
+  const [icpSettings, setIcpSettings] = useState<GlobalICPSettings | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("user_icp_preferences");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setTimeout(() => setIcpSettings(parsed), 0);
+      } catch (e) {
+        console.error("Failed to load ICP settings", e);
+      }
+    }
+  }, []);
 
   const fetchLeads = async (page: number = 1) => {
     setIsLoading(true);
@@ -77,7 +132,18 @@ const LeadScraper = () => {
 
       if (data.success) {
         setAllLeads(data.leads);
-        setDisplayedLeads(data.leads);
+        
+        let leads = data.leads;
+        // Sort by ICP score if available
+        if (icpSettings) {
+             leads = [...leads].sort((a: Lead, b: Lead) => {
+                const scoreA = calculateICPScore(a, icpSettings).score;
+                const scoreB = calculateICPScore(b, icpSettings).score;
+                return scoreB - scoreA;
+            });
+        }
+        
+        setDisplayedLeads(leads);
         setCurrentPage(data.page);
         
         setPagination({
@@ -283,125 +349,21 @@ const LeadScraper = () => {
         />
       </div>
 
-      {/* Optional ICP Preferences Section */}
-      <div className="bg-gradient-to-br from-[#1a1a1a] via-gray-900/20 to-[#1a1a1a] rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
-        <button
-          onClick={() => setShowICPPreferences(!showICPPreferences)}
-          className="w-full p-6 flex items-center justify-between text-left hover:bg-gray-800/30 transition-all duration-300"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FF6B35]/20 to-[#FF6B35]/10 flex items-center justify-center border border-[#FF6B35]/30">
-              <Settings size={20} className="text-[#FF6B35]" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-white group-hover:text-[#FF6B35] transition-colors duration-300">ICP Preferences (Optional)</h3>
-              <p className="text-sm text-gray-400 mt-1">Customize your ideal customer profile for better lead matching</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-500 px-3 py-1 bg-gray-800/50 rounded-full border border-gray-700/50">Optional</span>
-            {showICPPreferences ? <ChevronUp size={20} className="text-[#FF6B35]" /> : <ChevronDown size={20} className="text-gray-400" />}
-          </div>
-        </button>
-        
-        {showICPPreferences && (
-          <div className="px-6 pb-6 border-t border-gray-800/60 bg-gradient-to-br from-black/20 to-transparent">
-            <div className="mt-6 space-y-4">
-              <div className="bg-gradient-to-r from-[#FF6B35]/10 to-[#FF6B35]/5 border border-[#FF6B35]/30 rounded-lg p-4">
-                <h4 className="text-[#FF6B35] font-semibold mb-2">🎯 What are ICP Preferences?</h4>
-                <p className="text-gray-300 text-sm">Set your ideal customer profile to get more targeted leads. This helps our AI understand who you&apos;re looking for and prioritize matching results.</p>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Industry Focus (Optional)</label>
-                  <select
-                    className="w-full bg-black border border-gray-700 rounded-lg p-3 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
-                    defaultValue=""
-                  >
-                    <option value="">Any industry</option>
-                    <option value="SaaS">SaaS</option>
-                    <option value="Healthcare">Healthcare</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Manufacturing">Manufacturing</option>
-                    <option value="Retail">Retail</option>
-                    <option value="Tech">Tech</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Company Size (Optional)</label>
-                  <select
-                    className="w-full bg-black border border-gray-700 rounded-lg p-3 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
-                    defaultValue=""
-                  >
-                    <option value="">Any size</option>
-                    <option value="1-10">1-10 employees</option>
-                    <option value="10-50">10-50 employees</option>
-                    <option value="50-100">50-100 employees</option>
-                    <option value="100-500">100-500 employees</option>
-                    <option value="500+">500+ employees</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Budget Range (Optional)</label>
-                  <select
-                    className="w-full bg-black border border-gray-700 rounded-lg p-3 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
-                    defaultValue=""
-                  >
-                    <option value="">Any budget</option>
-                    <option value="budget">Budget-conscious</option>
-                    <option value="mid-range">Mid-range</option>
-                    <option value="premium">Premium</option>
-                    <option value="enterprise">Enterprise</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Growth Stage (Optional)</label>
-                  <select
-                    className="w-full bg-black border border-gray-700 rounded-lg p-3 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none"
-                    defaultValue=""
-                  >
-                    <option value="">Any stage</option>
-                    <option value="early">Early stage</option>
-                    <option value="growth">Growth stage</option>
-                    <option value="mature">Mature</option>
-                    <option value="established">Established</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">Additional Criteria (Optional)</label>
-                <textarea
-                  placeholder="e.g., 'B2B focus', 'English-speaking', 'Tech-savvy', 'Remote-first', etc."
-                  className="w-full bg-black border border-gray-700 rounded-lg p-3 text-white focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] outline-none min-h-[80px] resize-y"
-                  rows={3}
-                />
-                <p className="text-xs text-gray-500 mt-1">Add any specific business criteria that matter to you</p>
-              </div>
-              
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  className="px-6 py-2 bg-gradient-to-r from-[#FF6B35] to-[#FF8B55] hover:from-[#FF8B55] hover:to-[#FF6B35] text-white rounded-lg font-semibold transition-all duration-300 shadow-lg shadow-[#FF6B35]/25 hover:shadow-[#FF6B35]/40"
-                >
-                  Save Preferences
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowICPPreferences(false)}
-                  className="px-6 py-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg font-semibold transition-all duration-300 border border-gray-600/50"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* ICP Preferences Section */}
+      <GlobalICPForm 
+        isOpen={showICPPreferences} 
+        onToggle={() => setShowICPPreferences(!showICPPreferences)}
+        onSave={(settings) => {
+            setIcpSettings(settings);
+            // Re-sort leads based on new settings
+            const sorted = [...displayedLeads].sort((a, b) => {
+                const scoreA = calculateICPScore(a, settings).score;
+                const scoreB = calculateICPScore(b, settings).score;
+                return scoreB - scoreA;
+            });
+            setDisplayedLeads(sorted);
+        }}
+      />
 
       {message && (
         <div className={`p-4 rounded-lg flex items-center ${
@@ -529,58 +491,65 @@ const LeadScraper = () => {
                         `${l.firstName} ${l.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
                         (l.company || "").toLowerCase().includes(searchTerm.toLowerCase())
                     )
-                    .map((lead) => (
-                  <tr key={lead.id} className="hover:bg-black/50 transition-colors">
-                    <td className="px-4 py-4">
-                      <input
-                        type="checkbox"
-                        checked={selectedLeads.has(lead.id)}
-                        onChange={() => handleSelectLead(lead.id)}
-                        className="w-4 h-4 accent-[#FF6B35] cursor-pointer"
-                      />
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center border border-gray-700">
-                          <span className="text-gray-500 text-xs">{(lead.firstName[0] || "") + (lead.lastName[0] || "")}</span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-white text-sm font-medium">{lead.firstName} {lead.lastName}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="text-white font-medium">{lead.firstName} {lead.lastName}</div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[#FF6B35] font-medium">{lead.email}</span>
-                        <button
-                          onClick={() => handleCopyEmail(lead.email)}
-                          className="text-gray-500 hover:text-[#FF6B35] transition-colors"
-                          title="Copy email"
-                        >
-                          {copiedEmail === lead.email ? <Check size={14} /> : <Copy size={14} />}
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-white">{lead.company}</td>
-                    <td className="px-4 py-4 text-gray-400">{lead.title}</td>
-                    <td className="px-4 py-4 text-gray-400">{lead.location}</td>
-                    <td className="px-4 py-4 text-gray-400">{lead.industry}</td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => openCraftMessages(lead)}
-                          className="text-gray-500 hover:text-blue-500 transition-colors"
-                          title="Craft message"
-                        >
-                          <MessageSquare size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                    .map((lead) => {
+                      const icpMatch = calculateICPScore(lead, icpSettings);
+                      return (
+                      <tr key={lead.id} className="hover:bg-black/50 transition-colors">
+                        <td className="px-4 py-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedLeads.has(lead.id)}
+                            onChange={() => handleSelectLead(lead.id)}
+                            className="w-4 h-4 accent-[#FF6B35] cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center border border-gray-700">
+                              <span className="text-gray-500 text-xs">{(lead.firstName[0] || "") + (lead.lastName[0] || "")}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-white text-sm font-medium">{lead.firstName} {lead.lastName}</span>
+                              {icpMatch.score > 0 && (
+                                <span className="text-[10px] text-green-400 font-bold flex items-center gap-1 mt-0.5">
+                                    <Check size={10} /> ICP MATCH
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="text-white font-medium">{lead.firstName} {lead.lastName}</div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[#FF6B35] font-medium">{lead.email}</span>
+                            <button
+                              onClick={() => handleCopyEmail(lead.email)}
+                              className="text-gray-500 hover:text-[#FF6B35] transition-colors"
+                              title="Copy email"
+                            >
+                              {copiedEmail === lead.email ? <Check size={14} /> : <Copy size={14} />}
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-white">{lead.company}</td>
+                        <td className="px-4 py-4 text-gray-400">{lead.title}</td>
+                        <td className="px-4 py-4 text-gray-400">{lead.location}</td>
+                        <td className="px-4 py-4 text-gray-400">{lead.industry}</td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => openCraftMessages(lead)}
+                              className="text-gray-500 hover:text-blue-500 transition-colors"
+                              title="Craft message"
+                            >
+                              <MessageSquare size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )})}
               </tbody>
             </table>
           </div>
@@ -614,6 +583,7 @@ const LeadScraper = () => {
                 onDelete={handleDeleteLead}
                 onCopyEmail={handleCopyEmail}
                 copiedEmail={copiedEmail}
+                icpMatch={calculateICPScore(lead, icpSettings)}
               />
             ))}
           </div>
@@ -642,7 +612,7 @@ const LeadScraper = () => {
           </div>
           <div>
             <p className="text-blue-200 text-sm font-medium">Real-time Notifications Enabled</p>
-            <p className="text-blue-300/70 text-xs mt-1">YouYou&apos;ll receiveapos;ll receive instant alerts for new leads matching your ICP</p>
+            <p className="text-blue-300/70 text-xs mt-1">You&apos;ll receive instant alerts for new leads matching your ICP</p>
           </div>
         </div>
       )}

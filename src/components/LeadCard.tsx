@@ -12,9 +12,10 @@ interface LeadCardProps {
   onDelete: (id: string) => void;
   onCopyEmail: (email: string) => void;
   copiedEmail: string | null;
+  icpMatch?: { score: number; matches: string[] };
 }
 
-const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEmail }: LeadCardProps) => {
+const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEmail, icpMatch }: LeadCardProps) => {
   const { openCraftMessages } = useCraftMessages();
 
   const handleCraftMessage = () => {
@@ -43,12 +44,20 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
   return (
     <div className="bg-gradient-to-br from-black via-gray-900/20 to-black border border-gray-800/60 rounded-xl p-5 space-y-4 hover:border-[#FF6B35]/80 hover:shadow-2xl hover:shadow-[#FF6B35]/20 transition-all duration-500 group hover:scale-[1.02] hover:-translate-y-1">
       {/* Header section */}
-      <div className="flex items-center gap-4 border-b border-gray-800/60 pb-4">
+      <div className="flex items-center gap-4 border-b border-gray-800/60 pb-4 relative">
         <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#FF6B35]/20 via-[#FF6B35]/10 to-gray-800 flex items-center justify-center border border-[#FF6B35]/30 flex-shrink-0 shadow-lg shadow-[#FF6B35]/20 group-hover:shadow-[#FF6B35]/40 group-hover:border-[#FF6B35]/60 transition-all duration-500">
            <span className="text-[#FF6B35] font-bold text-lg drop-shadow-sm">{(lead.firstName?.[0] || "") + (lead.lastName?.[0] || "")}</span>
         </div>
         <div className="flex flex-col min-w-0 flex-1">
-          <span className="text-white font-bold text-lg truncate tracking-tight group-hover:text-[#FF6B35] transition-colors duration-300">{lead.firstName} {lead.lastName}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-white font-bold text-lg truncate tracking-tight group-hover:text-[#FF6B35] transition-colors duration-300">{lead.firstName} {lead.lastName}</span>
+            {icpMatch && icpMatch.score > 0 && (
+              <div className="flex items-center gap-1 px-2 py-0.5 bg-green-900/40 border border-green-800/60 rounded-full">
+                 <Check size={12} className="text-green-400" />
+                 <span className="text-[10px] font-bold text-green-400 uppercase tracking-wider">ICP Match</span>
+              </div>
+            )}
+          </div>
           <span className="text-gray-400 text-sm truncate mt-0.5 font-medium">{lead.title}</span>
         </div>
       </div>
@@ -74,6 +83,12 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
                  <span className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold border border-[#FF6B35]/30 text-[#FF6B35] bg-[#FF6B35]/10 backdrop-blur-sm">
                     {lead.location}
                  </span>
+                 {icpMatch && icpMatch.matches.length > 0 && icpMatch.matches.map(m => (
+                    <span key={m} className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border bg-green-900/30 text-green-400 border-green-800/50">
+                       <Check size={10} className="mr-1" />
+                       Matches {m}
+                    </span>
+                 ))}
             </div>
           </div>
         </div>
