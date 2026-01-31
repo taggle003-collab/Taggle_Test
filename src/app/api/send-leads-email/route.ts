@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { rateLimiter } from "@/lib/rate-limiter";
 
 const ADMIN_EMAIL = "taggle003@gmail.com";
 
@@ -114,19 +115,38 @@ export async function POST(req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    // Check rate limit for emails
+    const rateLimitResult = rateLimiter.checkEmailLimit(userId);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: rateLimitResult.error || "Too many requests",
+          rateLimited: true 
+        },
+        { 
+          status: 429,
+          headers: rateLimitResult.retryAfter 
+            ? { "Retry-After": rateLimitResult.retryAfter.toString() }
+            : undefined
+        }
+      );
+    }
+
     const user = await currentUser();
     const userEmail = user?.emailAddresses[0]?.emailAddress;
+
+    // Read request body once
+    const body = await req.json();
+    const { email, leads, criteria, page, total } = body;
 
     // Check if user is authorized (admin or the same user who made the request)
     if (userEmail !== ADMIN_EMAIL) {
       // For non-admin users, only allow them to send to their own email
-      const { email } = await req.json();
       if (email !== userEmail) {
         return new NextResponse("You can only send leads to your own email address", { status: 403 });
       }
     }
-
-    const { email, leads, criteria, page, total } = await req.json();
 
     if (!email || !leads || leads.length === 0) {
       return new NextResponse("Missing data", { status: 400 });

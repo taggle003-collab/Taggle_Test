@@ -69,6 +69,10 @@ const LeadScraper = () => {
       const response = await fetch(`/api/leads/search?${queryParams.toString()}`);
       
       if (!response.ok) {
+        if (response.status === 429) {
+          const data = await response.json();
+          throw new Error(data.error || "Too many searches. Please wait a moment before trying again.");
+        }
         throw new Error("Failed to fetch leads");
       }
 
@@ -96,7 +100,8 @@ const LeadScraper = () => {
       }
     } catch (error) {
       console.error("Error fetching leads:", error);
-      setMessage({ type: "error", text: "Something went wrong while fetching leads." });
+      const errorMessage = error instanceof Error ? error.message : "Something went wrong while fetching leads.";
+      setMessage({ type: "error", text: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -172,19 +177,31 @@ const LeadScraper = () => {
         body: JSON.stringify({
           email,
           leads: leadsToSend,
-          criteria: { industry: category, location: country }, // Mock criteria
+          criteria: { industry: category, location: country },
           page: currentPage,
           total: pagination?.total || leadsToSend.length,
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to send email");
+      if (!response.ok) {
+        if (response.status === 429) {
+          const data = await response.json();
+          throw new Error(data.error || "Too many email sends. Please wait a moment before trying again.");
+        }
+        throw new Error("Failed to send email");
+      }
 
-      setMessage({ type: "success", text: `Successfully sent ${leadsToSend.length} leads to ${email}!` });
-      setEmail("");
+      const data = await response.json();
+      if (data.success) {
+        setMessage({ type: "success", text: `Successfully sent ${leadsToSend.length} leads to ${email}!` });
+        setEmail("");
+      } else {
+        throw new Error(data.error || "Failed to send email");
+      }
     } catch (error) {
-      setMessage({ type: "error", text: "Failed to send email. Please try again." });
       console.error(error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to send email. Please try again.";
+      setMessage({ type: "error", text: errorMessage });
     } finally {
       setIsSending(false);
     }
