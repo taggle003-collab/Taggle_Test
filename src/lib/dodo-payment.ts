@@ -1,4 +1,25 @@
-type DodoPaymentsEnvironment = "live_mode" | "test_mode" | "live" | "test";
+type DodoAuthMethod = "Authorization Bearer" | "X-API-Key" | "Authorization Api-Key";
+
+function redactSecret(value: string): string {
+  if (!value) return value;
+  if (value.length <= 10) return "REDACTED";
+  return `${value.slice(0, 8)}…${value.slice(-4)}`;
+}
+
+function redactHeaders(headers: Record<string, string>): Record<string, string> {
+  const next = { ...headers };
+  if (next.Authorization) next.Authorization = "REDACTED";
+  if (next["X-API-Key"]) next["X-API-Key"] = "REDACTED";
+  return next;
+}
+
+function safeJsonParse(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
 
 function getDodoApiKey(): string {
   const key =
@@ -12,26 +33,39 @@ function getDodoApiKey(): string {
     );
   }
 
-  // Log first few characters for debugging (without exposing full key)
-  console.log("[dodo-payment] API key loaded:", key.substring(0, 8) + "...");
+  console.log("[dodo-payment] API key loaded:", redactSecret(key));
 
   return key;
 }
 
 function getDodoBaseUrl(): string {
   const baseUrl = process.env.DODO_PAYMENTS_BASE_URL;
-  if (baseUrl) return baseUrl.replace(/\/+$/, "");
-
-  // Check explicit environment variable first
-  const envVar = process.env.DODO_PAYMENTS_ENVIRONMENT;
-  if (envVar) {
-    if (envVar === "test" || envVar === "test_mode") return "https://test.dodopayments.com";
-    if (envVar === "live" || envVar === "live_mode") return "https://live.dodopayments.com";
+  if (baseUrl) {
+    const cleaned = baseUrl.replace(/\/+$/, "");
+    console.log("[dodo-payment] Using base URL from DODO_PAYMENTS_BASE_URL:", cleaned);
+    return cleaned;
   }
 
-  // Auto-detect from API key if possible
+  const envVar = process.env.DODO_PAYMENTS_ENVIRONMENT;
+  if (envVar) {
+    if (envVar === "test" || envVar === "test_mode") {
+      console.log("[dodo-payment] Environment detected from DODO_PAYMENTS_ENVIRONMENT:", envVar);
+      return "https://test.dodopayments.com";
+    }
+    if (envVar === "live" || envVar === "live_mode") {
+      console.log("[dodo-payment] Environment detected from DODO_PAYMENTS_ENVIRONMENT:", envVar);
+      return "https://live.dodopayments.com";
+    }
+
+    console.log("[dodo-payment] Unrecognized DODO_PAYMENTS_ENVIRONMENT:", envVar);
+  }
+
   const apiKey = (() => {
-    try { return getDodoApiKey(); } catch { return ""; }
+    try {
+      return getDodoApiKey();
+    } catch {
+      return "";
+    }
   })();
 
   if (apiKey) {
@@ -45,17 +79,15 @@ function getDodoBaseUrl(): string {
     }
   }
 
-  // Fallback to NODE_ENV
   const isProd = process.env.NODE_ENV === "production";
-  // return isProd ? "https://live.dodopayments.com" : "https://test.dodopayments.com";
+  const defaultUrl = isProd
+    ? "https://live.dodopayments.com"
+    : "https://test.dodopayments.com";
 
-  // CHANGED: Default to LIVE URL if we can't determine.
-  // Many users try to use live keys in dev. It's safer to default to live (or fail) 
-  // than to send a live key to a test endpoint which guarantees failure.
-  // But to be safe for dev, let's keep the isProd check but ADD logging.
+  console.log(
+    `[dodo-payment] Defaulting to ${isProd ? "LIVE" : "TEST"} URL based on NODE_ENV=${process.env.NODE_ENV}`
+  );
 
-  const defaultUrl = isProd ? "https://live.dodopayments.com" : "https://test.dodopayments.com";
-  console.log(`[dodo-payment] Defaulting to ${isProd ? "LIVE" : "TEST"} URL based on NODE_ENV=${process.env.NODE_ENV}`);
   return defaultUrl;
 }
 
@@ -117,99 +149,141 @@ export async function createDodoCheckoutSession(
 
   const url = `${baseUrl}/checkouts`;
 
-  console.log("[dodo-payment] Making API request to:", url);
-  console.log("[dodo-payment] API key loaded:", bearerToken.substring(0, 8) + "...");
+  console.log("[dodo-payment] Checkout create base URL:", baseUrl);
+  console.log("[dodo-payment] Checkout create endpoint:", url);
+  console.log(
+    "[dodo-payment] Environment vars:",
+    JSON.stringify(
+      {
+        DODO_PAYMENTS_ENVIRONMENT: process.env.DODO_PAYMENTS_ENVIRONMENT ?? null,
+        DODO_PAYMENTS_BASE_URL: process.env.DODO_PAYMENTS_BASE_URL ?? null,
+        NODE_ENV: process.env.NODE_ENV ?? null,
+      },
+      null,
+      2
+    )
+  );
+  console.log("[dodo-payment] API key loaded:", redactSecret(bearerToken));
 
-  // Try different authentication methods that Dodo might support
-  // Standard is usually Bearer token, so try that first.
-  const authHeaders: { name: string; headers: Record<string, string> }[] = [
+  const authHeaders: { name: DodoAuthMethod; headers: Record<string, string> }[] = [
     {
       name: "Authorization Bearer",
-      headers: { Authorization: `Bearer ${bearerToken}` }
+      headers: { Authorization: `Bearer ${bearerToken}` },
     },
     {
       name: "X-API-Key",
-      headers: { "X-API-Key": bearerToken }
+      headers: { "X-API-Key": bearerToken },
     },
     {
-      name: "Authorization API Key",
-      headers: { Authorization: `Api-Key ${bearerToken}` }
-    }
+      name: "Authorization Api-Key",
+      headers: { Authorization: `Api-Key ${bearerToken}` },
+    },
   ];
 
   let lastError: Error | null = null;
+  const attemptErrors: Array<{
+    authMethod: DodoAuthMethod;
+    status?: number;
+    statusText?: string;
+    responseBody?: unknown;
+  }> = [];
 
-  // Try each auth method until one works
   for (const authMethod of authHeaders) {
     try {
       console.log(`[dodo-payment] Trying auth method: ${authMethod.name}`);
 
+      const requestHeaders = {
+        "Content-Type": "application/json",
+        ...authMethod.headers,
+      };
+
+      console.log("[dodo-payment] Request", {
+        url,
+        authMethod: authMethod.name,
+        headers: redactHeaders(requestHeaders),
+        body: {
+          ...payload,
+          customer: payload.customer ? { ...payload.customer, email: "REDACTED" } : null,
+        },
+      });
+
       const response = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...authMethod.headers,
-        },
+        headers: requestHeaders,
         body: JSON.stringify(payload),
       });
 
       const responseText = await response.text();
-      const responseJson = (() => {
-        try {
-          return JSON.parse(responseText);
-        } catch {
-          return null;
-        }
-      })();
+      const responseJson = safeJsonParse(responseText);
+
+      console.log("[dodo-payment] Response", {
+        url,
+        authMethod: authMethod.name,
+        status: response.status,
+        statusText: response.statusText,
+        body: responseJson ?? responseText,
+      });
 
       if (!response.ok) {
-        // If this is a 401, try the next auth method
-        if (response.status === 401 && authMethod !== authHeaders[authHeaders.length - 1]) {
-          console.log(`[dodo-payment] 401 with ${authMethod.name}, trying next method...`);
-          continue;
-        }
-
-        console.error("Dodo API error", {
-          url,
+        attemptErrors.push({
+          authMethod: authMethod.name,
           status: response.status,
           statusText: response.statusText,
-          authMethod: authMethod.name,
-          request: {
-            ...payload,
-            customer: payload.customer ? { ...payload.customer, email: "REDACTED" } : null,
-          },
-          response: responseJson ?? responseText,
+          responseBody: responseJson ?? responseText,
         });
 
-        const message =
-          (typeof responseJson === "object" && responseJson &&
-            ("message" in responseJson || "error" in responseJson)
-            ? ((responseJson as any).message ?? (responseJson as any).error)
-            : null) ?? `Dodo API error: ${response.status} ${response.statusText}`;
+        const responseObj =
+          typeof responseJson === "object" && responseJson ? (responseJson as Record<string, unknown>) : null;
 
-        const error = new Error(message);
-        (error as any).status = response.status;
-        (error as any).details = responseJson ?? responseText;
+        const messageFromBody =
+          (responseObj && ("message" in responseObj || "error" in responseObj)
+            ? String((responseObj.message ?? responseObj.error) ?? "")
+            : null) ?? null;
+
+        const error = new Error(
+          `[dodo-payment] ${authMethod.name} failed: ${response.status} ${response.statusText}${
+            messageFromBody ? ` - ${String(messageFromBody)}` : ""
+          }`
+        ) as Error & {
+          status?: number;
+          details?: unknown;
+          authMethod?: DodoAuthMethod;
+        };
+
+        error.status = response.status;
+        error.details = responseJson ?? responseText;
+        error.authMethod = authMethod.name;
 
         if (response.status === 401 && authMethod !== authHeaders[authHeaders.length - 1]) {
+          console.log(
+            `[dodo-payment] 401 Unauthorized with ${authMethod.name}, trying next auth method...`
+          );
           lastError = error;
-          continue; // Try next auth method
+          continue;
         }
 
         throw error;
       }
 
-      // Success! Log which auth method worked
       console.log(`[dodo-payment] Success with auth method: ${authMethod.name}`);
 
-      if (!responseJson || !responseJson.session_id || !responseJson.checkout_url) {
-        console.error("Unexpected Dodo response", { url, response: responseJson ?? responseText });
+      const responseObj =
+        typeof responseJson === "object" && responseJson
+          ? (responseJson as Record<string, unknown>)
+          : null;
+
+      if (!responseObj || !responseObj.session_id || !responseObj.checkout_url) {
+        console.error("[dodo-payment] Unexpected Dodo response", {
+          url,
+          authMethod: authMethod.name,
+          response: responseJson ?? responseText,
+        });
         throw new Error("Invalid Dodo response: missing session_id or checkout_url");
       }
 
       return {
-        sessionId: responseJson.session_id,
-        checkoutUrl: responseJson.checkout_url,
+        sessionId: String(responseObj.session_id),
+        checkoutUrl: String(responseObj.checkout_url),
       };
     } catch (error) {
       lastError = error as Error;
@@ -221,79 +295,152 @@ export async function createDodoCheckoutSession(
     }
   }
 
-  // If we get here, all auth methods failed
-  console.error("[dodo-payment] All authentication methods failed");
-  throw lastError ?? new Error("All authentication methods failed");
+  console.error("[dodo-payment] All authentication methods failed", {
+    url,
+    baseUrl,
+    apiKey: redactSecret(bearerToken),
+    attemptErrors,
+  });
+
+  const aggregated = new Error(
+    `[dodo-payment] All authentication methods failed. Attempts: ${attemptErrors
+      .map((a) => `${a.authMethod}: ${a.status ?? "ERR"}`)
+      .join(", ")}`
+  ) as Error & { attemptErrors?: typeof attemptErrors; details?: unknown };
+
+  aggregated.attemptErrors = attemptErrors;
+  aggregated.details = (lastError as Error & { details?: unknown })?.details;
+
+  throw lastError ?? aggregated;
 }
 
 export async function getDodoOrder(orderId: string) {
   const bearerToken = getDodoApiKey();
   const baseUrl = getDodoBaseUrl();
 
-  // Try different authentication methods that Dodo might support
-  const authHeaders: { name: string; headers: Record<string, string> }[] = [
+  console.log("[dodo-payment] getDodoOrder base URL:", baseUrl);
+  console.log("[dodo-payment] getDodoOrder API key loaded:", redactSecret(bearerToken));
+
+  const authHeaders: { name: DodoAuthMethod; headers: Record<string, string> }[] = [
     {
       name: "X-API-Key",
-      headers: { "X-API-Key": bearerToken }
+      headers: { "X-API-Key": bearerToken },
     },
     {
       name: "Authorization Bearer",
-      headers: { Authorization: `Bearer ${bearerToken}` }
+      headers: { Authorization: `Bearer ${bearerToken}` },
     },
     {
-      name: "Authorization API Key",
-      headers: { Authorization: `Api-Key ${bearerToken}` }
-    }
+      name: "Authorization Api-Key",
+      headers: { Authorization: `Api-Key ${bearerToken}` },
+    },
   ];
 
   let lastError: Error | null = null;
+  const attemptErrors: Array<{
+    authMethod: DodoAuthMethod;
+    status?: number;
+    statusText?: string;
+    responseBody?: unknown;
+  }> = [];
 
-  // Try each auth method until one works
   for (const authMethod of authHeaders) {
     try {
+      const url = `${baseUrl}/orders/${orderId}`;
       console.log(`[dodo-payment] getDodoOrder trying auth method: ${authMethod.name}`);
+      console.log("[dodo-payment] getDodoOrder request", {
+        url,
+        authMethod: authMethod.name,
+        headers: redactHeaders(authMethod.headers),
+      });
 
-      const response = await fetch(`${baseUrl}/orders/${orderId}`, {
+      const response = await fetch(url, {
         method: "GET",
         headers: {
           ...authMethod.headers,
         },
       });
 
+      const text = await response.text().catch(() => "");
+      const json = safeJsonParse(text);
+
+      console.log("[dodo-payment] getDodoOrder response", {
+        url,
+        authMethod: authMethod.name,
+        status: response.status,
+        statusText: response.statusText,
+        body: json ?? text,
+      });
+
       if (!response.ok) {
-        // If this is a 401, try the next auth method
-        if (response.status === 401 && authMethod !== authHeaders[authHeaders.length - 1]) {
-          console.log(`[dodo-payment] getDodoOrder 401 with ${authMethod.name}, trying next method...`);
-          lastError = new Error(`401 Unauthorized with ${authMethod.name}`);
-          continue;
-        }
+        attemptErrors.push({
+          authMethod: authMethod.name,
+          status: response.status,
+          statusText: response.statusText,
+          responseBody: json ?? text,
+        });
 
-        const text = await response.text().catch(() => "");
-        const error = new Error(`Dodo API error: ${response.status} ${response.statusText} ${text}`);
-        (error as any).status = response.status;
+        const responseObj =
+          typeof json === "object" && json ? (json as Record<string, unknown>) : null;
+
+        const messageFromBody =
+          (responseObj && ("message" in responseObj || "error" in responseObj)
+            ? String((responseObj.message ?? responseObj.error) ?? "")
+            : null) ?? null;
+
+        const error = new Error(
+          `[dodo-payment] getDodoOrder ${authMethod.name} failed: ${response.status} ${
+            response.statusText
+          }${messageFromBody ? ` - ${String(messageFromBody)}` : ""}`
+        ) as Error & {
+          status?: number;
+          details?: unknown;
+          authMethod?: DodoAuthMethod;
+        };
+
+        error.status = response.status;
+        error.details = json ?? text;
+        error.authMethod = authMethod.name;
 
         if (response.status === 401 && authMethod !== authHeaders[authHeaders.length - 1]) {
+          console.log(
+            `[dodo-payment] getDodoOrder 401 Unauthorized with ${authMethod.name}, trying next auth method...`
+          );
           lastError = error;
-          continue; // Try next auth method
+          continue;
         }
 
         throw error;
       }
 
-      // Success! Log which auth method worked
       console.log(`[dodo-payment] getDodoOrder success with auth method: ${authMethod.name}`);
-      return await response.json();
+      return json ?? (text ? text : null);
     } catch (error) {
       lastError = error as Error;
       if (authMethod !== authHeaders[authHeaders.length - 1]) {
-        console.log(`[dodo-payment] getDodoOrder error with ${authMethod.name}, trying next method...`);
+        console.log(
+          `[dodo-payment] getDodoOrder error with ${authMethod.name}, trying next method...`
+        );
         continue;
       }
       break;
     }
   }
 
-  // If we get here, all auth methods failed
-  console.error("[dodo-payment] getDodoOrder all authentication methods failed");
-  throw lastError ?? new Error("All authentication methods failed for getDodoOrder");
+  console.error("[dodo-payment] getDodoOrder all authentication methods failed", {
+    baseUrl,
+    apiKey: redactSecret(bearerToken),
+    attemptErrors,
+  });
+
+  const aggregated = new Error(
+    `[dodo-payment] getDodoOrder all authentication methods failed. Attempts: ${attemptErrors
+      .map((a) => `${a.authMethod}: ${a.status ?? "ERR"}`)
+      .join(", ")}`
+  ) as Error & { attemptErrors?: typeof attemptErrors; details?: unknown };
+
+  aggregated.attemptErrors = attemptErrors;
+  aggregated.details = (lastError as Error & { details?: unknown })?.details;
+
+  throw lastError ?? aggregated;
 }
