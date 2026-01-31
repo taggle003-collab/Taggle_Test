@@ -25,8 +25,8 @@ function getDodoBaseUrl(): string {
   // Check explicit environment variable first
   const envVar = process.env.DODO_PAYMENTS_ENVIRONMENT;
   if (envVar) {
-     if (envVar === "test" || envVar === "test_mode") return "https://test.dodopayments.com";
-     return "https://live.dodopayments.com";
+    if (envVar === "test" || envVar === "test_mode") return "https://test.dodopayments.com";
+    if (envVar === "live" || envVar === "live_mode") return "https://live.dodopayments.com";
   }
 
   // Auto-detect from API key if possible
@@ -34,14 +34,29 @@ function getDodoBaseUrl(): string {
     try { return getDodoApiKey(); } catch { return ""; }
   })();
 
-  if (apiKey && (apiKey.startsWith("test_") || apiKey.includes("_test_"))) {
-    console.log("[dodo-payment] Auto-detected TEST mode from API key");
-    return "https://test.dodopayments.com";
+  if (apiKey) {
+    if (apiKey.startsWith("test_") || apiKey.includes("_test_")) {
+      console.log("[dodo-payment] Auto-detected TEST mode from API key");
+      return "https://test.dodopayments.com";
+    }
+    if (apiKey.startsWith("live_") || apiKey.includes("_live_")) {
+      console.log("[dodo-payment] Auto-detected LIVE mode from API key");
+      return "https://live.dodopayments.com";
+    }
   }
 
   // Fallback to NODE_ENV
   const isProd = process.env.NODE_ENV === "production";
-  return isProd ? "https://live.dodopayments.com" : "https://test.dodopayments.com";
+  // return isProd ? "https://live.dodopayments.com" : "https://test.dodopayments.com";
+
+  // CHANGED: Default to LIVE URL if we can't determine.
+  // Many users try to use live keys in dev. It's safer to default to live (or fail) 
+  // than to send a live key to a test endpoint which guarantees failure.
+  // But to be safe for dev, let's keep the isProd check but ADD logging.
+
+  const defaultUrl = isProd ? "https://live.dodopayments.com" : "https://test.dodopayments.com";
+  console.log(`[dodo-payment] Defaulting to ${isProd ? "LIVE" : "TEST"} URL based on NODE_ENV=${process.env.NODE_ENV}`);
+  return defaultUrl;
 }
 
 function getAppUrl(): string {
@@ -127,7 +142,7 @@ export async function createDodoCheckoutSession(
   for (const authMethod of authHeaders) {
     try {
       console.log(`[dodo-payment] Trying auth method: ${authMethod.name}`);
-      
+
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -167,19 +182,19 @@ export async function createDodoCheckoutSession(
 
         const message =
           (typeof responseJson === "object" && responseJson &&
-          ("message" in responseJson || "error" in responseJson)
+            ("message" in responseJson || "error" in responseJson)
             ? ((responseJson as any).message ?? (responseJson as any).error)
             : null) ?? `Dodo API error: ${response.status} ${response.statusText}`;
 
         const error = new Error(message);
         (error as any).status = response.status;
         (error as any).details = responseJson ?? responseText;
-        
+
         if (response.status === 401 && authMethod !== authHeaders[authHeaders.length - 1]) {
           lastError = error;
           continue; // Try next auth method
         }
-        
+
         throw error;
       }
 
@@ -236,7 +251,7 @@ export async function getDodoOrder(orderId: string) {
   for (const authMethod of authHeaders) {
     try {
       console.log(`[dodo-payment] getDodoOrder trying auth method: ${authMethod.name}`);
-      
+
       const response = await fetch(`${baseUrl}/orders/${orderId}`, {
         method: "GET",
         headers: {
@@ -255,12 +270,12 @@ export async function getDodoOrder(orderId: string) {
         const text = await response.text().catch(() => "");
         const error = new Error(`Dodo API error: ${response.status} ${response.statusText} ${text}`);
         (error as any).status = response.status;
-        
+
         if (response.status === 401 && authMethod !== authHeaders[authHeaders.length - 1]) {
           lastError = error;
           continue; // Try next auth method
         }
-        
+
         throw error;
       }
 
