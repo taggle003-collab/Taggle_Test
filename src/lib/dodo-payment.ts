@@ -22,18 +22,26 @@ function getDodoBaseUrl(): string {
   const baseUrl = process.env.DODO_PAYMENTS_BASE_URL;
   if (baseUrl) return baseUrl.replace(/\/+$/, "");
 
-  const env = (process.env.DODO_PAYMENTS_ENVIRONMENT ??
-    (process.env.NODE_ENV === "production" ? "live_mode" : "test_mode")) as DodoPaymentsEnvironment;
-
-  switch (env) {
-    case "test":
-    case "test_mode":
-      return "https://test.dodopayments.com";
-    case "live":
-    case "live_mode":
-    default:
-      return "https://live.dodopayments.com";
+  // Check explicit environment variable first
+  const envVar = process.env.DODO_PAYMENTS_ENVIRONMENT;
+  if (envVar) {
+     if (envVar === "test" || envVar === "test_mode") return "https://test.dodopayments.com";
+     return "https://live.dodopayments.com";
   }
+
+  // Auto-detect from API key if possible
+  const apiKey = (() => {
+    try { return getDodoApiKey(); } catch { return ""; }
+  })();
+
+  if (apiKey && (apiKey.startsWith("test_") || apiKey.includes("_test_"))) {
+    console.log("[dodo-payment] Auto-detected TEST mode from API key");
+    return "https://test.dodopayments.com";
+  }
+
+  // Fallback to NODE_ENV
+  const isProd = process.env.NODE_ENV === "production";
+  return isProd ? "https://live.dodopayments.com" : "https://test.dodopayments.com";
 }
 
 function getAppUrl(): string {
