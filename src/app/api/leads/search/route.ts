@@ -114,23 +114,30 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const country = searchParams.get("country") || "USA";
     const category = searchParams.get("category") || "Tech";
-    const page = parseInt(searchParams.get("page") || "1", 10);
+
+    // We intentionally do not support pagination here. The product requirement is:
+    // max 10 leads per search, no pagination beyond this.
+    const page = 1;
 
     console.log("[LEADS_SEARCH] Fetching leads", {
       country,
       category,
       page,
+      note: "Pagination disabled: always returning up to 10 leads",
     });
 
     const pageSize = 10;
-    const offset = (page - 1) * pageSize;
 
     const query = supabase
       .from("leads")
-      .select("*", { count: "exact" })
+      // Select only the columns we use (helps debug + avoids huge payloads)
+      .select(
+        `id, Name, Emails, Email, Phone, Address, Website, instagram, youtube, linkedin, twitter, tiktok, pinterest, facebook, Category, Country, "industry category", created_at, updated_at, City, OpenHours, SocialMedia, CompanySize, Title, Company`,
+        { count: "exact" }
+      )
       .eq("Country", country)
       .eq("industry category", category)
-      .range(offset, offset + pageSize - 1);
+      .limit(pageSize);
 
     console.log("[LEADS_SEARCH] Supabase query", {
       table: "leads",
@@ -138,10 +145,32 @@ export async function GET(request: Request) {
         Country: country,
         "industry category": category,
       },
-      range: {
-        from: offset,
-        to: offset + pageSize - 1,
-      },
+      limit: pageSize,
+      selectedColumns: [
+        "id",
+        "Name",
+        "Emails",
+        "Email",
+        "Phone",
+        "Address",
+        "City",
+        "Country",
+        "Website",
+        "Company",
+        "Title",
+        "CompanySize",
+        "Category",
+        "industry category",
+        "OpenHours",
+        "SocialMedia",
+        "instagram",
+        "youtube",
+        "linkedin",
+        "twitter",
+        "tiktok",
+        "pinterest",
+        "facebook",
+      ],
     });
 
     const { data, count, error } = await query;
@@ -155,7 +184,10 @@ export async function GET(request: Request) {
     }
 
     const totalCount = count || 0;
-    const totalPages = Math.ceil(totalCount / pageSize);
+
+    // Since we do not paginate, we only report a single page. This keeps existing
+    // client code stable while enforcing the 10-lead cap.
+    const totalPages = totalCount > 0 ? 1 : 0;
 
     // Transform database records to Lead type
     const records = (data || []) as DatabaseLead[];
@@ -164,7 +196,16 @@ export async function GET(request: Request) {
     console.log("[LEADS_SEARCH] Supabase response", {
       totalCount,
       returned: leads.length,
-      sample: leads[0] || null,
+      sample: records?.[0]
+        ? {
+            id: records[0].id,
+            Name: records[0].Name,
+            Emails: records[0].Emails,
+            Email: records[0].Email,
+            Country: records[0].Country,
+            industryCategory: records[0]["industry category"],
+          }
+        : null,
     });
 
     return NextResponse.json({
@@ -174,6 +215,10 @@ export async function GET(request: Request) {
       page,
       totalPages,
       pageSize,
+      pagination: {
+        enabled: false,
+        reason: "Product requirement: max 10 leads per search and no pagination",
+      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

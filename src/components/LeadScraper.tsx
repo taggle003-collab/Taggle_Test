@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import LeadFilterBar from "./LeadFilterBar";
 import LeadCard from "./LeadCard";
-import Pagination from "./Pagination";
+
 import UpgradePrompt from "./UpgradePrompt";
 import GlobalICPForm, { GlobalICPSettings } from "./GlobalICPForm";
 import { Mail, Search, CheckCircle2, AlertCircle, Loader2, Copy, Check, ArrowUpDown, MessageSquare } from "lucide-react";
@@ -147,12 +147,12 @@ const LeadScraper = () => {
         setCurrentPage(data.page);
         
         setPagination({
-          page: data.page,
+          page: 1,
           limit: 10,
           total: data.totalCount,
-          pages: data.totalPages,
-          hasNext: data.page < data.totalPages,
-          hasPrev: data.page > 1
+          pages: 1,
+          hasNext: false,
+          hasPrev: false,
         });
 
         if (data.leads.length === 0) {
@@ -588,20 +588,7 @@ const LeadScraper = () => {
             ))}
           </div>
 
-          {/* Pagination */}
-          {pagination && pagination.pages > 1 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={pagination.pages}
-              totalItems={pagination.total}
-              itemsPerPage={10}
-              onPageChange={handlePageChange}
-              onItemsPerPageChange={(limit) => {
-                  // We don't support changing limit in this MVP, but keeping interface
-                  console.log("Limit change not implemented", limit);
-              }}
-            />
-          )}
+          {/* Pagination intentionally disabled: API always returns up to 10 leads. */}
         </div>
       )}
 
