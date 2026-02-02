@@ -15,7 +15,7 @@ export interface LeadEmailPayload {
   subject: string;
   html: string;
   text: string;
-  leadData: any;
+  leadData: Lead | LeadSearchResult;
 }
 
 // Format lead data for email
@@ -24,20 +24,20 @@ const formatLeadForEmail = (lead: Lead | LeadSearchResult): string => {
     ? lead.name 
     : `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
     
-  const leadEmail = (lead as any).email || 'N/A';
-  const leadPhone = (lead as any).phone || 'N/A';
-  const leadCompany = (lead as any).company || 'N/A';
-  const leadTitle = (lead as any).title || 'N/A';
-  const leadIndustry = (lead as any).industry || (lead as any).category || 'N/A';
-  const leadLocation = (lead as any).location || (lead as any).country || 'N/A';
-  const leadWebsite = (lead as any).website || 'N/A';
-  const leadOpenHours = (lead as any).openHours || 'N/A';
+  const leadEmail = lead.email || 'N/A';
+  const leadPhone = ('phone' in lead ? lead.phone : undefined) || 'N/A';
+  const leadCompany = ('company' in lead ? lead.company : undefined) || 'N/A';
+  const leadTitle = ('title' in lead ? lead.title : undefined) || 'N/A';
+  const leadIndustry = ('industry' in lead ? lead.industry : 'category' in lead ? lead.category : undefined) || 'N/A';
+  const leadLocation = ('location' in lead ? lead.location : 'country' in lead ? lead.country : undefined) || 'N/A';
+  const leadWebsite = ('website' in lead ? lead.website : undefined) || 'N/A';
+  const leadOpenHours = ('openHours' in lead ? lead.openHours : undefined) || 'N/A';
   
-  const socialMediaAny = (lead as any).socialMedia;
-  const socialLinks = socialMediaAny ? 
-    (typeof socialMediaAny === 'string' 
-      ? socialMediaAny.toString().split(/[,\n;]/).filter(Boolean)
-      : socialMediaAny)
+  const socialMediaRaw = 'socialMedia' in lead ? lead.socialMedia : undefined;
+  const socialLinks = socialMediaRaw ? 
+    (typeof socialMediaRaw === 'string' 
+      ? socialMediaRaw.split(/[,\n;]/).filter(Boolean)
+      : Array.isArray(socialMediaRaw) ? socialMediaRaw : [])
     : [];
   
   return `
@@ -60,9 +60,9 @@ ${socialLinks.length > 0
 }
 
 ## Additional Information
-${(lead as any).companySize ? `- Company Size: ${(lead as any).companySize}` : ''}
-${(lead as any).matchedCriteria ? `- Matched Criteria: ${(lead as any).matchedCriteria?.join(', ') || 'N/A'}` : ''}
-${(lead as any).matchQualityScore ? `- Quality Score: ${(lead as any).matchQualityScore || 'N/A'}/100` : ''}
+${'companySize' in lead && lead.companySize ? `- Company Size: ${lead.companySize}` : ''}
+${'matchedCriteria' in lead && lead.matchedCriteria ? `- Matched Criteria: ${lead.matchedCriteria.join(', ')}` : ''}
+${'matchQualityScore' in lead && lead.matchQualityScore ? `- Quality Score: ${lead.matchQualityScore}/100` : ''}
 `.trim();
 };
 
@@ -72,9 +72,12 @@ const generateLeadEmailHTML = (lead: Lead | LeadSearchResult): string => {
     ? lead.name 
     : `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
   
-  const socialLinks = 'socialMedia' in lead && lead.socialMedia
-    ? lead.socialMedia.toString().split(/[,\n;]/).filter(Boolean)
-    : lead.socialMedia || [];
+  const socialMediaRaw = 'socialMedia' in lead ? lead.socialMedia : undefined;
+  const socialLinks: string[] = socialMediaRaw
+    ? (typeof socialMediaRaw === 'string' 
+        ? socialMediaRaw.split(/[,\n;]/).filter(Boolean)
+        : Array.isArray(socialMediaRaw) ? socialMediaRaw : [])
+    : [];
   
   return `
 <!DOCTYPE html>
@@ -118,7 +121,7 @@ const generateLeadEmailHTML = (lead: Lead | LeadSearchResult): string => {
         
         <div class="lead-item">
           <span class="lead-label">Email:</span> 
-          <a href="mailto:${'email' in lead ? lead.email : lead.email}">${'email' in lead ? lead.email : lead.email}</a>
+          <a href="mailto:${lead.email}">${lead.email}</a>
         </div>
         
         <div class="lead-item">
@@ -198,7 +201,7 @@ const generateLeadEmailHTML = (lead: Lead | LeadSearchResult): string => {
 export const sendLeadEmail = async (
   lead: Lead | LeadSearchResult,
   userEmail: string,
-  userName?: string
+  _userName?: string
 ): Promise<EmailSendResult> => {
   try {
     const leadName = 'name' in lead 
@@ -206,8 +209,8 @@ export const sendLeadEmail = async (
       : `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
     
     const subject = `New Lead: ${leadName} - ${'company' in lead ? lead.company || 'Unknown Company' : 'Unknown Company'}`;
-    const textContent = formatLeadForEmail(lead);
-    const htmlContent = generateLeadEmailHTML(lead);
+    const _textContent = formatLeadForEmail(lead);
+    const _htmlContent = generateLeadEmailHTML(lead);
     
     // In a real implementation, this would call the Resend API
     // const response = await fetch('https://api.resend.com/emails', {
@@ -258,7 +261,7 @@ export const sendBatchLeadEmail = async (
       : `Lead Batch Update - ${leads.length} new leads`;
     
     // Create summary text
-    const textContent = `
+    const _textContent = `
 Lead Batch Report
 =================
 
