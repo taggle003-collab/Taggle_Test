@@ -15,8 +15,8 @@ const supabase = createClient(supabaseUrl || "", supabaseKey || "");
 
 // Database record type from Supabase
 interface DatabaseLead {
-  id?: string;
-  Name?: string;
+  id: string;
+  Name: string;
   Emails?: string;
   Phone?: string;
   Address?: string;
@@ -29,16 +29,10 @@ interface DatabaseLead {
   pinterest?: string;
   facebook?: string;
   Category?: string;
-  Country?: string;
-  "industry category"?: string;
+  Country: string;
+  "industry category": string;
   created_at?: string;
   updated_at?: string;
-  City?: string;
-  OpenHours?: string;
-  SocialMedia?: string;
-  CompanySize?: string;
-  Title?: string;
-  Company?: string;
 }
 
 // Transform database record to Lead type
@@ -49,7 +43,7 @@ function transformLead(record: DatabaseLead, category: string): Lead {
   const lastName = nameParts.slice(1).join(" ") || "";
 
   const email = record.Emails || "";
-  const locationParts = [record.Address, record.City, record.Country].filter(Boolean);
+  const locationParts = [record.Address, record.Country].filter(Boolean);
   const socialHandles = [
     record.instagram,
     record.youtube,
@@ -65,15 +59,15 @@ function transformLead(record: DatabaseLead, category: string): Lead {
     firstName,
     lastName,
     email,
-    company: record.Company || record.Website || "Unknown Company",
-    title: record.Title || "Unknown Title",
+    company: record.Website || "Unknown Company",
+    title: "Unknown",
     location: locationParts.length ? locationParts.join(", ") : "Unknown",
-    companySize: record.CompanySize || "Unknown",
+    companySize: "Unknown",
     industry: record["industry category"] || record.Category || category,
     website: record.Website,
     phone: record.Phone,
-    openHours: record.OpenHours,
-    socialMedia: record.SocialMedia || (socialHandles.length ? socialHandles.join(", ") : undefined),
+    openHours: undefined,
+    socialMedia: socialHandles.length ? socialHandles.join(", ") : undefined,
     source: "database",
     matchedCriteria: [record.Country, record["industry category"] || record.Category || category].filter(
       (value): value is string => Boolean(value)
@@ -131,7 +125,7 @@ export async function GET(request: Request) {
       .from("leads")
       // Select only the columns we use (helps debug + avoids huge payloads)
       .select(
-        `id, Name, Emails, Phone, Address, Website, instagram, youtube, linkedin, twitter, tiktok, pinterest, facebook, Category, Country, "industry category", created_at, updated_at, City, OpenHours, SocialMedia, CompanySize, Title, Company`,
+        `id,Name,Emails,Phone,Address,Website,instagram,youtube,linkedin,twitter,tiktok,pinterest,facebook,Category,Country,"industry category",created_at,updated_at`,
         { count: "exact" }
       )
       .eq("Country", country)
@@ -151,16 +145,10 @@ export async function GET(request: Request) {
         "Emails",
         "Phone",
         "Address",
-        "City",
         "Country",
         "Website",
-        "Company",
-        "Title",
-        "CompanySize",
         "Category",
         "industry category",
-        "OpenHours",
-        "SocialMedia",
         "instagram",
         "youtube",
         "linkedin",
@@ -168,6 +156,8 @@ export async function GET(request: Request) {
         "tiktok",
         "pinterest",
         "facebook",
+        "created_at",
+        "updated_at",
       ],
     });
 
