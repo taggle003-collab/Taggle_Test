@@ -18,7 +18,6 @@ interface DatabaseLead {
   id?: string;
   Name?: string;
   Emails?: string;
-  Email?: string;
   Phone?: string;
   Address?: string;
   Website?: string;
@@ -49,7 +48,7 @@ function transformLead(record: DatabaseLead, category: string): Lead {
   const firstName = nameParts[0] || "";
   const lastName = nameParts.slice(1).join(" ") || "";
 
-  const email = record.Emails || record.Email || "";
+  const email = record.Emails || "";
   const locationParts = [record.Address, record.City, record.Country].filter(Boolean);
   const socialHandles = [
     record.instagram,
@@ -132,7 +131,7 @@ export async function GET(request: Request) {
       .from("leads")
       // Select only the columns we use (helps debug + avoids huge payloads)
       .select(
-        `id, Name, Emails, Email, Phone, Address, Website, instagram, youtube, linkedin, twitter, tiktok, pinterest, facebook, Category, Country, "industry category", created_at, updated_at, City, OpenHours, SocialMedia, CompanySize, Title, Company`,
+        `id, Name, Emails, Phone, Address, Website, instagram, youtube, linkedin, twitter, tiktok, pinterest, facebook, Category, Country, "industry category", created_at, updated_at, City, OpenHours, SocialMedia, CompanySize, Title, Company`,
         { count: "exact" }
       )
       .eq("Country", country)
@@ -150,7 +149,6 @@ export async function GET(request: Request) {
         "id",
         "Name",
         "Emails",
-        "Email",
         "Phone",
         "Address",
         "City",
@@ -193,6 +191,12 @@ export async function GET(request: Request) {
     const records = (data || []) as DatabaseLead[];
     const leads: Lead[] = records.map((record) => transformLead(record, category));
 
+    console.log("[LEADS_SEARCH] Email column mapping", {
+      note: 'Fetching Supabase column "Emails" and mapping it to Lead.email',
+      returned: leads.length,
+      emails: leads.map((l) => l.email).filter(Boolean),
+    });
+
     console.log("[LEADS_SEARCH] Supabase response", {
       totalCount,
       returned: leads.length,
@@ -201,7 +205,6 @@ export async function GET(request: Request) {
             id: records[0].id,
             Name: records[0].Name,
             Emails: records[0].Emails,
-            Email: records[0].Email,
             Country: records[0].Country,
             industryCategory: records[0]["industry category"],
           }
