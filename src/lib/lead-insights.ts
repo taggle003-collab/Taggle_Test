@@ -276,7 +276,7 @@ export const generateProInsights = (leads: (Lead | LeadSearchResult)[]): ProLead
 
   // Social media analysis
   let totalReach = 0;
-  const platformCount: Record<string, number> = { instagram: 0, linkedin: 0, twitter: 0, facebook: 0, youtube: 0, other: 0 };
+  const platformCount = { instagram: 0, linkedin: 0, twitter: 0, facebook: 0, youtube: 0, other: 0 };
   
   leads.forEach(lead => {
     if (!('socialMedia' in lead) || !lead.socialMedia) return;
@@ -374,6 +374,3 @@ export const generateLeadInsights = (
   }
   return generateSoloInsights(leads);
 };
-
-// Export types
-export type { SoloLeadInsights, ProLeadInsights };

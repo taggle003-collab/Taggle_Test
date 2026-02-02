@@ -45,7 +45,7 @@ export const convertLeadToCRMContact = (
   lead: Lead | LeadSearchResult,
   leadScore?: number
 ): CRMContact => {
-  const leadEmail = (lead as any).email || '';
+  const leadEmail = lead.email || '';
   
   return {
     id: `crm_${lead.id}`,
@@ -63,13 +63,13 @@ export const convertLeadToCRMContact = (
 
 // Convert lead to CRM company
 export const convertLeadToCRMCompany = (lead: Lead | LeadSearchResult): CRMCompany => {
-  const companyName = 'company' in lead ? lead.company : 'Unknown';
+  const companyName = ('company' in lead ? lead.company : undefined) || 'Unknown Company';
   return {
     id: `company_${companyName}`,
     name: companyName,
-    industry: 'industry' in lead ? lead.industry : undefined,
-    location: 'location' in lead ? lead.location : undefined,
-    website: 'website' in lead ? lead.website : undefined,
+    industry: ('industry' in lead ? lead.industry : undefined) || 'Not specified',
+    location: ('location' in lead ? lead.location : undefined) || 'Not specified',
+    website: ('website' in lead ? lead.website : undefined) || 'Not available',
     companySize: 'companySize' in lead ? lead.companySize : undefined,
     contactIds: [],
   };
