@@ -15,14 +15,25 @@ const supabase = createClient(supabaseUrl || "", supabaseKey || "");
 
 // Database record type from Supabase
 interface DatabaseLead {
-  id: string;
-  Name: string;
+  id?: string;
+  Name?: string;
+  Emails?: string;
   Email?: string;
   Phone?: string;
+  Address?: string;
   Website?: string;
-  Country: string;
-  Category: string;
+  instagram?: string;
+  youtube?: string;
+  linkedin?: string;
+  twitter?: string;
+  tiktok?: string;
+  pinterest?: string;
+  facebook?: string;
+  Category?: string;
+  Country?: string;
   "industry category"?: string;
+  created_at?: string;
+  updated_at?: string;
   City?: string;
   OpenHours?: string;
   SocialMedia?: string;
@@ -34,26 +45,40 @@ interface DatabaseLead {
 // Transform database record to Lead type
 function transformLead(record: DatabaseLead, category: string): Lead {
   // Split name into firstName and lastName
-  const nameParts = (record.Name || '').split(' ');
-  const firstName = nameParts[0] || '';
-  const lastName = nameParts.slice(1).join(' ') || '';
+  const nameParts = (record.Name || "").split(" ");
+  const firstName = nameParts[0] || "";
+  const lastName = nameParts.slice(1).join(" ") || "";
+
+  const email = record.Emails || record.Email || "";
+  const locationParts = [record.Address, record.City, record.Country].filter(Boolean);
+  const socialHandles = [
+    record.instagram,
+    record.youtube,
+    record.linkedin,
+    record.twitter,
+    record.tiktok,
+    record.pinterest,
+    record.facebook,
+  ].filter(Boolean);
 
   return {
-    id: record.id,
+    id: record.id || `${record.Name || "lead"}-${record.created_at || ""}-${record.Country || ""}`,
     firstName,
     lastName,
-    email: record.Email || '',
-    company: record.Company || record.Website || 'Unknown Company',
-    title: record.Title || 'Unknown Title',
-    location: record.City ? `${record.City}, ${record.Country}` : record.Country,
-    companySize: record.CompanySize || 'Unknown',
+    email,
+    company: record.Company || record.Website || "Unknown Company",
+    title: record.Title || "Unknown Title",
+    location: locationParts.length ? locationParts.join(", ") : "Unknown",
+    companySize: record.CompanySize || "Unknown",
     industry: record["industry category"] || record.Category || category,
     website: record.Website,
     phone: record.Phone,
     openHours: record.OpenHours,
-    socialMedia: record.SocialMedia,
-    source: 'database',
-    matchedCriteria: [record.Country, record["industry category"] || record.Category || category].filter(Boolean),
+    socialMedia: record.SocialMedia || (socialHandles.length ? socialHandles.join(", ") : undefined),
+    source: "database",
+    matchedCriteria: [record.Country, record["industry category"] || record.Category || category].filter(
+      (value): value is string => Boolean(value)
+    ),
     matchQualityScore: 100,
   };
 }
@@ -91,17 +116,35 @@ export async function GET(request: Request) {
     const category = searchParams.get("category") || "Tech";
     const page = parseInt(searchParams.get("page") || "1", 10);
 
-    console.log(`[LEADS_SEARCH] Fetching: country=${country}, category=${category}, page=${page}`);
+    console.log("[LEADS_SEARCH] Fetching leads", {
+      country,
+      category,
+      page,
+    });
 
     const pageSize = 10;
     const offset = (page - 1) * pageSize;
 
-    const { data, count, error } = await supabase
+    const query = supabase
       .from("leads")
       .select("*", { count: "exact" })
       .eq("Country", country)
       .eq("industry category", category)
       .range(offset, offset + pageSize - 1);
+
+    console.log("[LEADS_SEARCH] Supabase query", {
+      table: "leads",
+      filters: {
+        Country: country,
+        "industry category": category,
+      },
+      range: {
+        from: offset,
+        to: offset + pageSize - 1,
+      },
+    });
+
+    const { data, count, error } = await query;
 
     if (error) {
       console.error("[LEADS_SEARCH] Supabase error:", error);
@@ -115,9 +158,14 @@ export async function GET(request: Request) {
     const totalPages = Math.ceil(totalCount / pageSize);
 
     // Transform database records to Lead type
-    const leads: Lead[] = (data || []).map((record: any) => transformLead(record as DatabaseLead, category));
+    const records = (data || []) as DatabaseLead[];
+    const leads: Lead[] = records.map((record) => transformLead(record, category));
 
-    console.log(`[LEADS_SEARCH] Found ${totalCount} total leads, returning ${leads.length}`);
+    console.log("[LEADS_SEARCH] Supabase response", {
+      totalCount,
+      returned: leads.length,
+      sample: leads[0] || null,
+    });
 
     return NextResponse.json({
       success: true,
