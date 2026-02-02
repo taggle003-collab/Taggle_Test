@@ -4,7 +4,7 @@ import React, { useMemo, useState } from "react";
 import { AlertCircle, Loader2, Search } from "lucide-react";
 import LeadScraperForm from "@/components/lead-scraper/LeadScraperForm";
 import LeadCard from "@/components/lead-scraper/LeadCard";
-import PaginationControls from "@/components/lead-scraper/PaginationControls";
+
 import type { LeadSearchResult } from "@/lib/lead-types";
 
 const pageSize = 10;
@@ -14,10 +14,10 @@ const LeadScraperPage = () => {
   const [category, setCategory] = useState("Tech");
   const [companySize, setCompanySize] = useState("");
   const [industrySubcategory, setIndustrySubcategory] = useState("");
-  const [page, setPage] = useState(1);
+
   const [leads, setLeads] = useState<LeadSearchResult[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -66,7 +66,7 @@ const LeadScraperPage = () => {
         throw new Error(data.error || "Failed to fetch leads");
       }
 
-      const mappedLeads: LeadSearchResult[] = (data.leads || []).map((lead: any) => ({
+      const mappedLeads: LeadSearchResult[] = (data.leads || []).map((lead: Record<string, unknown>) => ({
         id: lead.id ?? `${lead.name}-${lead.email}`,
         name: lead.name ?? `${lead.firstName ?? ""} ${lead.lastName ?? ""}`.trim(),
         email: lead.email ?? "",
@@ -75,7 +75,7 @@ const LeadScraperPage = () => {
         openHours: lead.openHours ?? undefined,
         socialMedia: Array.isArray(lead.socialMedia)
           ? lead.socialMedia
-          : lead.socialMedia
+          : typeof lead.socialMedia === "string"
             ? lead.socialMedia.split(",").map((item: string) => item.trim()).filter(Boolean)
             : [],
         category: lead.Category ?? lead.category ?? lead.industry ?? category,
@@ -89,14 +89,14 @@ const LeadScraperPage = () => {
 
       setLeads(mappedLeads);
       setTotalCount(data.totalCount ?? 0);
-      setTotalPages(data.totalPages ?? 0);
-      setPage(data.page ?? pageNumber);
+
+
     } catch (fetchError) {
       console.error("[LEAD_SCRAPER] Error fetching leads:", fetchError);
       setError(fetchError instanceof Error ? fetchError.message : "Something went wrong.");
       setLeads([]);
       setTotalCount(0);
-      setTotalPages(0);
+
     } finally {
       setIsLoading(false);
     }
@@ -104,15 +104,10 @@ const LeadScraperPage = () => {
 
   const handleSearch = () => {
     setHasSearched(true);
-    setPage(1);
     fetchLeads(1);
   };
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage === page || newPage < 1 || newPage > totalPages) return;
-    setPage(newPage);
-    fetchLeads(newPage);
-  };
+
 
   return (
     <div className="space-y-8">
@@ -131,19 +126,15 @@ const LeadScraperPage = () => {
         isLoading={isLoading}
         onCountryChange={(value) => {
           setCountry(value);
-          setPage(1);
         }}
         onCategoryChange={(value) => {
           setCategory(value);
-          setPage(1);
         }}
         onCompanySizeChange={(value) => {
           setCompanySize(value);
-          setPage(1);
         }}
         onIndustrySubcategoryChange={(value) => {
           setIndustrySubcategory(value);
-          setPage(1);
         }}
         onSearch={handleSearch}
       />
@@ -153,7 +144,7 @@ const LeadScraperPage = () => {
           <h2 className="text-xl font-semibold text-white">Results</h2>
           {totalCount > 0 && (
             <p className="text-sm text-gray-400">
-              Showing leads {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, totalCount)} of {totalCount}
+              Showing up to {Math.min(pageSize, totalCount)} of {totalCount}
             </p>
           )}
         </div>
@@ -191,9 +182,7 @@ const LeadScraperPage = () => {
         )}
       </div>
 
-      {!isLoading && totalPages > 1 && (
-        <PaginationControls currentPage={page} totalPages={totalPages} onPageChange={handlePageChange} />
-      )}
+      {/* Pagination intentionally disabled: API always returns up to 10 leads. */}
     </div>
   );
 };

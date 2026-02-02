@@ -119,7 +119,14 @@ const LeadCard = ({ lead, isSelected, onSelect, onDelete, onCopyEmail, copiedEma
             }`}
             title="Copy email"
           >
-            {copiedEmail === lead.email ? <Check size={18} /> : <Copy size={18} />}
+            {copiedEmail === lead.email ? (
+              <span className="inline-flex items-center gap-2">
+                <Check size={18} />
+                <span className="hidden sm:inline text-xs font-semibold">Copied!</span>
+              </span>
+            ) : (
+              <Copy size={18} />
+            )}
           </button>
         </div>
       </div>
