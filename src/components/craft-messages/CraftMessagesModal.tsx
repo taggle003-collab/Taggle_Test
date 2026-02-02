@@ -49,15 +49,36 @@ export default function CraftMessagesModal() {
     setError(null);
 
     try {
+      // Enhanced lead context with website and social media data
+      const enhancedLead = {
+        ...selectedLead,
+        // Parse social media links for better context
+        socialMediaLinks: selectedLead.socialMedia 
+          ? selectedLead.socialMedia.split(/[,\n;]/).filter(Boolean)
+          : [],
+      };
+
       const response = await fetch("/api/craft-messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          lead: selectedLead,
+          lead: enhancedLead,
           tone,
           style,
           sampleLines,
           talkingPoints,
+          // Include contextual information for better message generation
+          context: {
+            hasWebsite: !!selectedLead.website,
+            hasSocialMedia: !!(selectedLead.socialMedia && selectedLead.socialMedia.length > 0),
+            companyInfo: {
+              hasCompany: !!selectedLead.company,
+              hasIndustry: !!selectedLead.industry,
+              hasLocation: !!selectedLead.location,
+            },
+          },
+          // Pre-fill recipient email if available
+          recipientEmail: selectedLead.email || '',
         }),
       });
 

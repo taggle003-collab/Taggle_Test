@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { jsPDF } from 'jspdf';
 import { LeadBatch, ScrapedLead, LimitedInsights } from '@/lib/inbox-types';
 import { deleteLeadBatch, generateInsights } from '@/lib/inbox-utils';
 import { LeadTable } from './LeadTable';
@@ -114,6 +115,61 @@ export function SoloInboxView({ batch, onDeleteBatch, userEmail, onRefresh }: So
     window.URL.revokeObjectURL(url);
   };
 
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(20);
+    doc.setTextColor(255, 107, 53); // #FF6B35
+    doc.text('Lead Batch Report', 20, 30);
+    
+    // Batch info
+    doc.setFontSize(12);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Batch: ${batch.name}`, 20, 45);
+    doc.text(`Created: ${new Date(batch.createdAt).toLocaleDateString()}`, 20, 55);
+    doc.text(`Total Leads: ${filteredLeads.length}`, 20, 65);
+    
+    // Table headers
+    const headers = ['Name', 'Email', 'Company', 'Location', 'Verified'];
+    let yPosition = 85;
+    
+    doc.setFontSize(11);
+    doc.setTextColor(255, 107, 53);
+    headers.forEach((header, index) => {
+      const x = 20 + (index * 40);
+      doc.text(header, x, yPosition);
+    });
+    
+    // Table content
+    doc.setTextColor(0, 0, 0);
+    yPosition = 100;
+    const pageHeight = 280;
+    
+    filteredLeads.forEach((lead, index) => {
+      if (yPosition > pageHeight) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      doc.setFontSize(10);
+      doc.text(lead.name.substring(0, 15), 20, yPosition);
+      doc.text(lead.email.substring(0, 20), 60, yPosition);
+      doc.text(lead.company.substring(0, 15), 100, yPosition);
+      doc.text(lead.location.substring(0, 15), 140, yPosition);
+      doc.text(lead.verified ? 'Yes' : 'No', 180, yPosition);
+      
+      yPosition += 10;
+    });
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`Generated on ${new Date().toLocaleString()}`, 20, pageHeight + 5);
+    
+    doc.save(`${batch.name}.pdf`);
+  };
+
   const verifiedCount = filteredLeads.filter(lead => lead.verified).length;
   const verificationRate = Math.round((verifiedCount / filteredLeads.length) * 100);
 
@@ -148,8 +204,8 @@ export function SoloInboxView({ batch, onDeleteBatch, userEmail, onRefresh }: So
             {/* Export CSV Button */}
             <ExportMenu 
               onExportCSV={handleExportCSV}
-              onExportPDF={() => {}} // PDF export not available in Solo
-              showPDF={false}
+              onExportPDF={handleExportPDF}
+              showPDF={true}
             />
             
             {/* Delete Button */}

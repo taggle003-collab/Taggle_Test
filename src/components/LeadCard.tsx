@@ -163,6 +163,46 @@ const parseSocialLinks = (socialValue?: string): SocialLink[] => {
   return Array.from(uniqueByUrl.values());
 };
 
+const calculateLeadScore = (lead: Lead): number => {
+  let score = 0;
+  
+  // Has email: +30 points
+  if (lead.email && lead.email.trim() !== '') {
+    score += 30;
+  }
+  
+  // Has phone: +20 points
+  if (lead.phone && lead.phone.trim() !== '') {
+    score += 20;
+  }
+  
+  // Has website: +20 points
+  if (lead.website && lead.website.trim() !== '') {
+    score += 20;
+  }
+  
+  // Has 3+ social media links: +20 points
+  const socialLinks = parseSocialLinks(lead.socialMedia);
+  if (socialLinks.length >= 3) {
+    score += 20;
+  }
+  
+  // Has complete company info: +10 points
+  if (lead.company && lead.company.trim() !== '' && 
+      lead.industry && lead.industry.trim() !== '' && 
+      lead.location && lead.location.trim() !== '') {
+    score += 10;
+  }
+  
+  return Math.min(score, 100); // Cap at 100
+};
+
+const getScoreColor = (score: number): string => {
+  if (score <= 30) return 'bg-red-500/20 text-red-400 border-red-500/40';
+  if (score <= 70) return 'bg-orange-500/20 text-orange-400 border-orange-500/40';
+  return 'bg-green-500/20 text-green-400 border-green-500/40';
+};
+
 const LeadCard = ({
   lead,
   isSelected,
@@ -180,6 +220,7 @@ const LeadCard = ({
 
   const emails = parseEmails(lead.email || "");
   const socialLinks = parseSocialLinks(lead.socialMedia);
+  const leadScore = calculateLeadScore(lead);
 
   const getCategoryBadge = (category: string) => {
     const lowerCat = category.toLowerCase();
@@ -227,6 +268,11 @@ const LeadCard = ({
           <span className="text-gray-400 text-sm truncate mt-0.5 font-medium">
             {lead.title}
           </span>
+        </div>
+        
+        {/* Lead Score Badge */}
+        <div className={`px-3 py-1.5 rounded-lg border text-sm font-bold flex-shrink-0 ${getScoreColor(leadScore)}`}>
+          Score: {leadScore}/100
         </div>
       </div>
 
@@ -354,6 +400,42 @@ const LeadCard = ({
           </div>
         )}
 
+        {/* Website Section - Formatted professionally */}
+        {lead.website && (
+          <div className="flex items-start gap-3 text-gray-400 text-sm bg-gray-800/20 border border-gray-700/40 rounded-lg p-3 group-hover:border-[#FF6B35]/30 group-hover:bg-[#FF6B35]/5 transition-all duration-300">
+            <div className="w-8 h-8 rounded-md bg-gray-800/50 flex items-center justify-center border border-gray-700/50 group-hover:border-[#FF6B35]/30 transition-all duration-300">
+              <Globe
+                size={14}
+                className="text-gray-400 group-hover:text-[#FF6B35] transition-colors duration-300"
+              />
+            </div>
+            <div className="flex-1 min-w-0 space-y-2">
+              <a
+                href={normalizeUrl(lead.website)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-between gap-3 rounded-md px-2 py-1 -mx-2 hover:bg-gray-800/40 transition-colors group/website"
+              >
+                <span className="flex items-start gap-2.5 min-w-0">
+                  <span className="flex flex-col min-w-0">
+                    <span className="text-gray-300 font-semibold group-hover/website:text-white transition-colors duration-200">
+                      Website
+                    </span>
+                    <span className="text-xs text-gray-500 truncate">
+                      {lead.website.replace(/^https?:\/\//, '').replace(/^www\./, '')}
+                    </span>
+                  </span>
+                </span>
+                <ArrowUpRight
+                  size={16}
+                  className="text-gray-500 group-hover/website:text-[#FF6B35] transition-colors duration-200 flex-shrink-0"
+                />
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* Social Media Section */}
         <div className="flex items-start gap-3 text-gray-400 text-sm bg-gray-800/20 border border-gray-700/40 rounded-lg p-3 group-hover:border-[#FF6B35]/30 group-hover:bg-[#FF6B35]/5 transition-all duration-300">
           <div className="w-8 h-8 rounded-md bg-gray-800/50 flex items-center justify-center border border-gray-700/50 group-hover:border-[#FF6B35]/30 transition-all duration-300">
             <Globe

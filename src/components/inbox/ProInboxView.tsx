@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { jsPDF } from 'jspdf';
 import { LeadBatch, ScrapedLead, FullInsights } from '@/lib/inbox-types';
 import { deleteLeadBatch, generateInsights } from '@/lib/inbox-utils';
 import { LeadTable } from './LeadTable';
@@ -139,6 +140,76 @@ export function ProInboxView({ batch, onDeleteBatch, userEmail, onRefresh }: Pro
     window.URL.revokeObjectURL(url);
   };
 
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(20);
+    doc.setTextColor(255, 107, 53); // #FF6B35
+    doc.text('Pro Lead Batch Report', 20, 30);
+    
+    // Batch info
+    doc.setFontSize(12);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Batch: ${batch.name}`, 20, 45);
+    doc.text(`Created: ${new Date(batch.createdAt).toLocaleDateString()}`, 20, 55);
+    doc.text(`Total Leads: ${filteredLeads.length}`, 20, 65);
+    
+    if (insights) {
+      doc.text(`ICP Match: ${insights.icpMatchPercentage}%`, 20, 75);
+      doc.text(`Est. Pipeline Value: ${insights.roiEstimate.estimatedValue}`, 20, 85);
+    }
+    
+    // Table headers
+    const headers = ['Name', 'Email', 'Company', 'Location', 'Quality', 'Verified'];
+    let yPosition = 105;
+    
+    doc.setFontSize(11);
+    doc.setTextColor(255, 107, 53);
+    headers.forEach((header, index) => {
+      const x = 20 + (index * 30);
+      doc.text(header, x, yPosition);
+    });
+    
+    // Table content
+    doc.setTextColor(0, 0, 0);
+    yPosition = 120;
+    const pageHeight = 280;
+    
+    filteredLeads.forEach((lead, index) => {
+      if (yPosition > pageHeight) {
+        doc.addPage();
+        yPosition = 20;
+        
+        // Re-draw headers on new page
+        doc.setFontSize(11);
+        doc.setTextColor(255, 107, 53);
+        headers.forEach((header, idx) => {
+          const x = 20 + (idx * 30);
+          doc.text(header, x, yPosition - 5);
+        });
+        doc.setTextColor(0, 0, 0);
+      }
+      
+      doc.setFontSize(10);
+      doc.text(lead.name.substring(0, 12), 20, yPosition);
+      doc.text(lead.email.substring(0, 15), 50, yPosition);
+      doc.text(lead.company.substring(0, 12), 80, yPosition);
+      doc.text(lead.location.substring(0, 10), 110, yPosition);
+      doc.text(`${lead.matchQualityScore || 'N/A'}%`, 140, yPosition);
+      doc.text(lead.verified ? 'Yes' : 'No', 170, yPosition);
+      
+      yPosition += 10;
+    });
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`Generated on ${new Date().toLocaleString()} | Pro Plan Features`, 20, pageHeight + 5);
+    
+    doc.save(`${batch.name}_pro.pdf`);
+  };
+
   const verifiedCount = filteredLeads.filter(lead => lead.verified).length;
   const verificationRate = Math.round((verifiedCount / filteredLeads.length) * 100);
 
@@ -175,8 +246,8 @@ export function ProInboxView({ batch, onDeleteBatch, userEmail, onRefresh }: Pro
             {/* Export CSV Button */}
             <ExportMenu 
               onExportCSV={handleExportCSV}
-              onExportPDF={() => {}} // PDF would require additional library
-              showPDF={false}
+              onExportPDF={handleExportPDF}
+              showPDF={true}
             />
             
             {/* Delete Button */}
