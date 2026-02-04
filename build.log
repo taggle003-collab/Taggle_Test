@@ -1,0 +1,59 @@
+npm warn Unknown env config "python". This will stop working in the next major version of npm.
+
+> project@0.1.0 build
+> next build
+
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+▲ Next.js 16.1.1 (Turbopack)
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 12.3s
+  Running TypeScript ...
+  Collecting page data using 2 workers ...
+  Generating static pages using 2 workers (0/27) ...
+  Generating static pages using 2 workers (6/27) 
+  Generating static pages using 2 workers (13/27) 
+  Generating static pages using 2 workers (20/27) 
+✓ Generating static pages using 2 workers (27/27) in 295.7ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /admin
+├ ƒ /api/create-checkout
+├ ƒ /api/inbox/delete-batch
+├ ƒ /api/inbox/list-batches
+├ ƒ /api/scrape-leads
+├ ƒ /api/send-leads-email
+├ ƒ /api/webhook/dodo
+├ ƒ /dashboard
+├ ƒ /dashboard/analytics
+├ ƒ /dashboard/automations
+├ ƒ /dashboard/automations/custom
+├ ƒ /dashboard/automations/email
+├ ƒ /dashboard/automations/social
+├ ƒ /dashboard/automations/whatsapp
+├ ƒ /dashboard/crm
+├ ƒ /dashboard/crm/activities
+├ ƒ /dashboard/crm/contacts
+├ ƒ /dashboard/crm/pipeline
+├ ƒ /dashboard/crm/tasks
+├ ƒ /dashboard/inbox
+├ ƒ /dashboard/leads
+├ ƒ /dashboard/profile
+├ ƒ /dashboard/settings
+├ ƒ /sign-in/[[...sign-in]]
+└ ƒ /sign-up/[[...sign-up]]
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
