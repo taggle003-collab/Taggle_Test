@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   ArrowUpRight,
   Building2,
@@ -60,6 +60,68 @@ const platformMeta: Record<Exclude<SocialPlatform, "other">, { label: string; Ic
     pinterest: { label: "Pinterest", Icon: Pin, baseUrl: "https://pinterest.com/" },
     facebook: { label: "Facebook", Icon: Facebook, baseUrl: "https://facebook.com/" },
   };
+
+// Extract clean domain from URL
+const extractDomain = (url?: string): string | null => {
+  if (!url) return null;
+  
+  try {
+    const cleaned = url.trim().toLowerCase();
+    const withProtocol = cleaned.startsWith('http://') || cleaned.startsWith('https://') 
+      ? cleaned 
+      : `https://${cleaned}`;
+    
+    const urlObj = new URL(withProtocol);
+    let domain = urlObj.hostname;
+    
+    // Remove www. prefix
+    domain = domain.replace(/^www\./, '');
+    
+    return domain;
+  } catch {
+    // If URL parsing fails, try basic extraction
+    const cleaned = url.trim().toLowerCase();
+    const withoutProtocol = cleaned.replace(/^https?:\/\//, '').replace(/^www\./, '');
+    const domainPart = withoutProtocol.split('/')[0];
+    return domainPart || null;
+  }
+};
+
+// WebsiteLogo component - displays favicon using Google's favicon service
+const WebsiteLogo = ({ website }: { website?: string }) => {
+  const [hasError, setHasError] = useState(false);
+  
+  if (!website || hasError) {
+    return (
+      <div className="w-8 h-8 rounded-md bg-gray-800/50 flex items-center justify-center border border-gray-700/50 flex-shrink-0">
+        <Globe size={16} className="text-gray-400" />
+      </div>
+    );
+  }
+  
+  const domain = extractDomain(website);
+  if (!domain) {
+    return (
+      <div className="w-8 h-8 rounded-md bg-gray-800/50 flex items-center justify-center border border-gray-700/50 flex-shrink-0">
+        <Globe size={16} className="text-gray-400" />
+      </div>
+    );
+  }
+  
+  // Using Google's favicon service with fallback
+  const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  
+  return (
+    <div className="w-8 h-8 rounded-md bg-white/90 flex items-center justify-center border border-gray-700/50 flex-shrink-0 overflow-hidden">
+      <img
+        src={faviconUrl}
+        alt={`${domain} logo`}
+        className="w-6 h-6 object-contain"
+        onError={() => setHasError(true)}
+      />
+    </div>
+  );
+};
 
 const inferPlatform = (raw: string): SocialPlatform => {
   const value = raw.toLowerCase();
@@ -286,10 +348,7 @@ const LeadCard = ({
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <Building2
-                size={18}
-                className="text-[#FF6B35] flex-shrink-0 drop-shadow-sm"
-              />
+              <WebsiteLogo website={lead.website} />
               <h3 className="text-white font-bold text-xl truncate group-hover:text-[#FF6B35] transition-colors duration-300">
                 {lead.company}
               </h3>
