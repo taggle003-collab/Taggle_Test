@@ -35,6 +35,57 @@ interface DatabaseLead {
   updated_at?: string;
 }
 
+// Extract domain from URL for deduplication
+function extractDomain(url?: string): string | null {
+  if (!url) return null;
+  
+  try {
+    const cleaned = url.trim().toLowerCase();
+    const withProtocol = cleaned.startsWith('http://') || cleaned.startsWith('https://') 
+      ? cleaned 
+      : `https://${cleaned}`;
+    
+    const urlObj = new URL(withProtocol);
+    let domain = urlObj.hostname;
+    
+    // Remove www. prefix
+    domain = domain.replace(/^www\./, '');
+    
+    return domain;
+  } catch {
+    // If URL parsing fails, try basic extraction
+    const cleaned = url.trim().toLowerCase();
+    const withoutProtocol = cleaned.replace(/^https?:\/\//, '').replace(/^www\./, '');
+    const domainPart = withoutProtocol.split('/')[0];
+    return domainPart || null;
+  }
+}
+
+// Calculate lead quality score for prioritization
+function calculateLeadQualityScore(record: DatabaseLead): number {
+  let score = 0;
+  
+  if (record.Emails && record.Emails.trim() !== '') score += 30;
+  if (record.Phone && record.Phone.trim() !== '') score += 20;
+  if (record.Website && record.Website.trim() !== '') score += 20;
+  
+  const socialCount = [
+    record.instagram,
+    record.youtube,
+    record.linkedin,
+    record.twitter,
+    record.tiktok,
+    record.pinterest,
+    record.facebook,
+  ].filter(Boolean).length;
+  
+  if (socialCount >= 3) score += 20;
+  
+  if (record.Name && record["industry category"] && record.Country) score += 10;
+  
+  return Math.min(score, 100);
+}
+
 // Transform database record to Lead type
 function transformLead(record: DatabaseLead, category: string): Lead {
   // Split name into firstName and lastName
@@ -74,6 +125,45 @@ function transformLead(record: DatabaseLead, category: string): Lead {
     ),
     matchQualityScore: 100,
   };
+}
+
+// Fisher-Yates shuffle algorithm for randomization
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+// Deduplicate leads by website domain, keeping the highest quality lead
+function deduplicateByWebsite(records: DatabaseLead[]): DatabaseLead[] {
+  const domainMap = new Map<string, DatabaseLead>();
+  const noDomainLeads: DatabaseLead[] = [];
+  
+  for (const record of records) {
+    const domain = extractDomain(record.Website);
+    
+    if (!domain) {
+      noDomainLeads.push(record);
+      continue;
+    }
+    
+    const existing = domainMap.get(domain);
+    if (!existing) {
+      domainMap.set(domain, record);
+    } else {
+      const existingScore = calculateLeadQualityScore(existing);
+      const currentScore = calculateLeadQualityScore(record);
+      
+      if (currentScore > existingScore) {
+        domainMap.set(domain, record);
+      }
+    }
+  }
+  
+  return [...domainMap.values(), ...noDomainLeads];
 }
 
 export async function GET(request: Request) {
@@ -120,6 +210,8 @@ export async function GET(request: Request) {
     });
 
     const pageSize = 10;
+    // Fetch more records initially to account for deduplication
+    const fetchSize = pageSize * 3;
 
     const query = supabase
       .from("leads")
@@ -130,7 +222,7 @@ export async function GET(request: Request) {
       )
       .eq("Country", country)
       .eq("industry category", category)
-      .limit(pageSize);
+      .limit(fetchSize);
 
     console.log("[LEADS_SEARCH] Supabase query", {
       table: "leads",
@@ -177,9 +269,27 @@ export async function GET(request: Request) {
     // client code stable while enforcing the 10-lead cap.
     const totalPages = totalCount > 0 ? 1 : 0;
 
+    // Process records: deduplicate by website domain and randomize
+    let records = (data || []) as DatabaseLead[];
+    
+    // Step 1: Deduplicate by website domain (keeps highest quality lead per domain)
+    records = deduplicateByWebsite(records);
+    
+    // Step 2: Randomize the order
+    records = shuffleArray(records);
+    
+    // Step 3: Limit to page size after deduplication
+    records = records.slice(0, pageSize);
+    
     // Transform database records to Lead type
-    const records = (data || []) as DatabaseLead[];
     const leads: Lead[] = records.map((record) => transformLead(record, category));
+
+    console.log("[LEADS_SEARCH] Processing results", {
+      note: "Applied deduplication by website domain and randomization",
+      originalCount: (data || []).length,
+      afterDeduplication: records.length,
+      finalCount: leads.length,
+    });
 
     console.log("[LEADS_SEARCH] Email column mapping", {
       note: 'Fetching Supabase column "Emails" and mapping it to Lead.email',
